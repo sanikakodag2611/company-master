@@ -12,9 +12,9 @@ return [
 
     'allowed_methods' => ['*'],
     
-    // 'allowed_origins' => [
-    //     'http://localhost:5173', // React Vite frontend
-    // ],
+    'allowed_origins' => [
+        'http://localhost:5173', // React Vite frontend
+    ],
 
     'allowed_origins_patterns' => [],
 
@@ -27,8 +27,8 @@ return [
     'supports_credentials' => true,
 
     'paths' => ['api/*'],
-'allowed_methods' => ['*'],
-'allowed_origins' => ['*'], // or specify your frontend URL
-'allowed_headers' => ['*'],
+    'allowed_methods' => ['*'],
+    'allowed_origins' => ['*'], // or specify your frontend URL
+    'allowed_headers' => ['*'],
 
 ];

@@ -13,3 +13,8 @@ Route::post('/department/store', [DepartmentMasterController::class, 'store'])->
 Route::get('/department/edit/{id}', [DepartmentMasterController::class, 'edit'])->name('department.edit');
 Route::post('/department/update/{id}', [DepartmentMasterController::class, 'update'])->name('department.update');
 Route::post('/department/destroy/{id}', [DepartmentMasterController::class, 'destroy'])->name('department.destroy');
+
+ 
+// use App\Http\Controllers\LoginController;
+
+// Route::post('/api/login', [LoginController::class, 'login']);

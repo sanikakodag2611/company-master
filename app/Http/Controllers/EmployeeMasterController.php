@@ -9,32 +9,20 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Auth;
 
-class EmployeeMasterController extends Controller
+class EmployeeMasterController extends BaseController
 {
     public function store(Request $request)
     {
+        
+    //     $companyId = Session::get('company_id');
+    //     $yearId = Session::get('year_id');
      
+    
+    //    if (!$companyId || !$yearId || !$loginId) {
+    //        return response()->json(['status' => false, 'message' => 'Session expired. Please login again.'], 401);
+    //     }
 
-        // $validated = $request->validate([
-        //     'employee_name' => 'required|string',
-        //     'email' => 'required|email|unique:employee_master,email',
-        //     'username'=> 'required|string|unique:employee_master,username',
-        //     'password' => 'required|min:6',
-        //     'contact_no' => 'required|string|max:15|unique:employee_master,contact_no',
-        //     'address' => 'nullable|string',
-        //     'date_of_birth' => 'required|date',
-        //     'gender' => 'required|in:Male,Female,Other',
-        //     'state_id' => 'required|exists:state_masters,state_id',
-        //     'company_id' => 'required|exists:company_masters,id',
-        //     'year_id' => 'required|exists:year_masters,id',
-        //     'city' => 'required|string',
-        //     'pan_card' => 'required|string|size:10|regex:/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/|unique:employee_master,pan_card',
-        //     'designation_id' => 'required|exists:designation_masters,id',
-        //     'department_id' => 'required|exists:department_masters,id',
-        //     'status'=>'required|in:0,1',
-        // ]);
-
-         $validated = $request->validate([
+        $validated = $request->validate([
             'employee_name' => 'required|string',
             'email' => 'required|email|unique:employee_master,email',
             'username'=> 'required|string|unique:employee_master,username',
@@ -44,39 +32,21 @@ class EmployeeMasterController extends Controller
             'date_of_birth' => 'required|date',
             'gender' => 'required|in:Male,Female,Other',
             'state_id' => 'required|exists:state_masters,state_id',
+            'company_id' => 'exists:company_masters,id',
+            'year_id' => 'exists:year_masters,id',
             'city' => 'required|string',
             'pan_card' => 'required|string|size:10|regex:/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/|unique:employee_master,pan_card',
             'designation_id' => 'required|exists:designation_masters,id',
             'department_id' => 'required|exists:department_masters,id',
             'status'=>'required|in:0,1',
-        ]);
+        ]); 
 
-        $companyId = Session::get('company_id');
-        $yearId = Session::get('year_id');
- 
-
-        $validated['company_id'] =  $companyId;
-        $validated['year_id'] = $yearId;
-
+       
         $validated['password'] = Hash::make($validated['password']);
 
-        // if (!$company_id || !$year_id) {
-        //     // fallback to request only if not logged in (optional)
-        //     $company_id = $request->input('company_id');
-        //     $year_id = $request->input('year_id');
-        // }
-        
-
-        $companyId = session('company_id');
-        $yearId = session('year_id');
-
-        if (!$companyId || !$yearId) {
-            return response()->json(['message' => 'Missing company_id or year_id. Please login or provide them'], 400);
-        }
-
-
-        
-
+         $validated['company_id'] = $this->getCompanyId();
+        $validated['year_id'] = $this->getYearId();
+ 
         $employee = EmployeeMaster::create($validated);
 
         LoginMaster::create([
@@ -93,6 +63,9 @@ class EmployeeMasterController extends Controller
             'login_info' => [
                 'username' => $employee->username,
                 'password' => '****** (hidden)',  
+            ],
+            'session' => [
+              'company_id'=>$this->getCompanyId(),
             ],
             'data' => $employee
         ]);
@@ -178,3 +151,7 @@ class EmployeeMasterController extends Controller
         ]);
     }
 }
+
+
+
+ 

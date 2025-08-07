@@ -36,18 +36,17 @@ Route::get('/designation', [DesignationMasterController::class, 'index']);
 Route::get('/designation/{id}', [DesignationMasterController::class, 'show']);
 Route::put('/designation/{id}', [DesignationMasterController::class, 'update']);
 Route::delete('/designation/{id}', [DesignationMasterController::class, 'destroy']);
- 
- 
-    Route::post('/employee', [EmployeeMasterController::class, 'store'])->middleware('auth:sanctum');
-    Route::get('/employee/{id}', [EmployeeMasterController::class, 'show']);
-    Route::put('/employee/{id}', [EmployeeMasterController::class, 'update'])->middleware('auth:sanctum');
-    Route::delete('/employee/{id}', [EmployeeMasterController::class, 'destroy'])->middleware('auth:sanctum');
+  
+Route::post('/employee', [EmployeeMasterController::class, 'store'])->middleware('auth:sanctum');
+Route::get('/employee/{id}', [EmployeeMasterController::class, 'show'])->middleware('auth:sanctum');
+Route::put('/employee/{id}', [EmployeeMasterController::class, 'update'])->middleware('auth:sanctum');
+Route::delete('/employee/{id}', [EmployeeMasterController::class, 'destroy'])->middleware('auth:sanctum');
  
 
 Route::get('/years', [YearMasterController::class, 'index']);
-    Route::post('/years', [YearMasterController::class, 'store']);
-    Route::put('/years/{id}', [YearMasterController::class, 'update']);
-    Route::delete('/years/{id}', [YearMasterController::class, 'destroy']);
+Route::post('/years', [YearMasterController::class, 'store']);
+Route::put('/years/{id}', [YearMasterController::class, 'update']);
+Route::delete('/years/{id}', [YearMasterController::class, 'destroy']);
 
     
 Route::get('/states', [StateController::class, 'index']);

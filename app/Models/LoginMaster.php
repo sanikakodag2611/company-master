@@ -15,8 +15,7 @@ class LoginMaster extends Authenticatable
         'username',
         'password',
         'status',
-        'company_id',
-    'year_id',
+        
     ];
 
     protected $hidden = [

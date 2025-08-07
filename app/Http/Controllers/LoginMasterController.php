@@ -51,6 +51,10 @@ class LoginMasterController extends Controller
             'company_id' => $employee->company_id,
             'year_id' => $employee->year_id,
         ],
+         'session' => [
+            'company_id' => Session::get('company_id'),
+            'year_id' => Session::get('year_id')
+        ]
     ]);
 }
 

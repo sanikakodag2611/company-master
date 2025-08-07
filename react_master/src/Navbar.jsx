@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
   const navigate = useNavigate();
-  const isLoggedIn = !!localStorage.getItem('auth_token');
+ 
 
   const handleLogout = () => {
     localStorage.removeItem('auth_token');
@@ -12,7 +12,7 @@ const Navbar = () => {
 
   return (
     <nav style={styles.navbar}>
-      <div style={styles.logo}>MyApp</div>
+     
       <ul style={styles.navLinks}>
         
         

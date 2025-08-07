@@ -142,6 +142,8 @@ const AddEmployee = () => {
           </>
         )}
 
+        
+
         <select name="status" value={formData.status} onChange={handleChange} required>
           <option value="">Select Status</option>
           <option value="1">Active</option>
