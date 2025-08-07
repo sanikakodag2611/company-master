@@ -7,11 +7,12 @@ use App\Models\DesignationMaster;
 
 class DesignationMasterController extends Controller
 {
+   
     public function index()
     {
-        $data = DesignationMaster::all();
-        return response()->json(['status' => true, 'data' => $data]);
+        return DesignationMaster::all();
     }
+
 
     public function store(Request $request)
     {

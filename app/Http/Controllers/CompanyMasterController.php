@@ -7,7 +7,10 @@ use App\Models\CompanyMaster;
 
 class CompanyMasterController extends Controller
 {
-    
+    public function index()
+    { 
+        return CompanyMaster::all();
+    }
     public function create(Request $request)
     {
         $validated = $request->validate([

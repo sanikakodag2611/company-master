@@ -34,4 +34,10 @@ class CompanyMaster extends Model
     {
         return $this->belongsTo(StateMaster::class, 'state_id');
     }
+     
+    
+
+
+
+ 
 }

@@ -18,6 +18,9 @@ return [
         'passwords' => env('AUTH_PASSWORD_BROKER', 'users'),
     ],
 
+
+
+
     /*
     |--------------------------------------------------------------------------
     | Authentication Guards
@@ -42,6 +45,14 @@ return [
         ],
     ],
 
+    
+    'guards' => [
+    'api' => [
+        'driver' => 'sanctum',
+        'provider' => 'login_masters', // make sure this matches your provider
+    ],
+   ],
+
     /*
     |--------------------------------------------------------------------------
     | User Providers
@@ -64,6 +75,14 @@ return [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
+
+
+        'providers' => [
+    'login_masters' => [
+        'driver' => 'eloquent',
+        'model' => App\Models\LoginMaster::class,
+    ],
+],
 
         // 'users' => [
         //     'driver' => 'database',

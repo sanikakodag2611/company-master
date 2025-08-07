@@ -6,6 +6,13 @@ use App\Models\DepartmentMaster;
 
 class DepartmentMasterController extends Controller
 { 
+     
+    public function index()
+    {
+        
+        return DepartmentMaster::all();
+    }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -16,24 +23,19 @@ class DepartmentMasterController extends Controller
 
         $department = DepartmentMaster::create($validated);
 
-        return response()->json([
-            'status' => true,
-            'message' => 'Department created successfully',
-            'data' => $department,
-        ]);
-    }
+        // return response()->json([
+        //     'status' => true,
+        //     'message' => 'Department created successfully',
+        //     'data' => $department,
+        // ]);
+
+        return response()->json($department );
 
  
-    public function index()
-    {
-        $departments = DepartmentMaster::all();
-        return response()->json([
-            'status' => true,
-            'data' => $departments,
-        ]);
     }
 
- 
+   
+      
     public function show($id)
     {
         $department = DepartmentMaster::findOrFail($id);
@@ -43,6 +45,8 @@ class DepartmentMasterController extends Controller
         ]);
     }
  
+   
+
     public function update(Request $request, $id)
     {
         $department = DepartmentMaster::findOrFail($id);

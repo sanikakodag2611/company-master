@@ -11,6 +11,8 @@ class EmployeeMaster extends Model
     protected $fillable = [
         'employee_name',
         'email',
+        'username',
+        'password',
         'contact_no',
         'address',
         'date_of_birth',
@@ -20,6 +22,8 @@ class EmployeeMaster extends Model
         'pan_card',
         'designation_id',
         'department_id',
+        'company_id',
+        'year_id',
         'status',
     ];
 
@@ -28,4 +32,13 @@ class EmployeeMaster extends Model
         return $this->hasOne(LoginMaster::class, 'employee_id');
     }
 
+    public function company()
+    {
+        return $this->belongsTo(CompanyMaster::class, 'company_id');
+    }
+
+    public function year()
+    {
+        return $this->belongsTo(YearMaster::class, 'year_id');
+    }
 }
