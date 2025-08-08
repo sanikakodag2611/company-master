@@ -6,7 +6,7 @@ import AddEmployee from './AddEmployee';
 import DepartmentForm from './Department/DepartmentForm';
 import DesignationForm from './Designation/DesignationForm';
 import CompanyMasterForm from './Company/CompanyMasterForm';
-
+import UploadExcel from './UploadExcel';
 function App() {
   return (
     <Router>
@@ -19,6 +19,7 @@ function App() {
           <Route path="/add-department" element={< DepartmentForm />} />
           <Route path="/designations" element={<DesignationForm />} />
           <Route path="/company" element={<CompanyMasterForm />} />
+          <Route path="/upload" element={<UploadExcel/>} />
         </Routes>
       </div>
     </Router>

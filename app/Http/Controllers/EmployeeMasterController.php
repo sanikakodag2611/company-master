@@ -14,10 +14,14 @@ class EmployeeMasterController extends BaseController
     public function store(Request $request)
     {
         
-    //     $companyId = Session::get('company_id');
-    //     $yearId = Session::get('year_id');
+        // $companyId = Session::get('company_id');
+        // $yearId = Session::get('year_id');
+
+        
      
-    
+    // $companyId = $request->company_id;
+    // $yearId = $request->year_id;
+
     //    if (!$companyId || !$yearId || !$loginId) {
     //        return response()->json(['status' => false, 'message' => 'Session expired. Please login again.'], 401);
     //     }
@@ -44,8 +48,8 @@ class EmployeeMasterController extends BaseController
        
         $validated['password'] = Hash::make($validated['password']);
 
-         $validated['company_id'] = $this->getCompanyId();
-        $validated['year_id'] = $this->getYearId();
+        $validated['company_id'] =session('company_id');
+        $validated['year_id'] = session('year_id');
  
         $employee = EmployeeMaster::create($validated);
 
@@ -65,7 +69,8 @@ class EmployeeMasterController extends BaseController
                 'password' => '****** (hidden)',  
             ],
             'session' => [
-              'company_id'=>$this->getCompanyId(),
+              'company_id' => session('company_id'),
+              'year_id'    => session('year_id'),
             ],
             'data' => $employee
         ]);

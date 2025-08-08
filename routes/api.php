@@ -3,6 +3,8 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\StateController;
+use App\Http\Middleware\AttachCompanyYear;
+use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\YearMasterController;
 use App\Http\Controllers\LoginMasterController;
 use App\Http\Controllers\CompanyMasterController;
@@ -10,6 +12,7 @@ use App\Http\Controllers\CountryMasterController;
 use App\Http\Controllers\EmployeeMasterController;
 use App\Http\Controllers\DepartmentMasterController;
 use App\Http\Controllers\DesignationMasterController;
+use App\Http\Controllers\InvoiceDataUploadController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -37,11 +40,33 @@ Route::get('/designation/{id}', [DesignationMasterController::class, 'show']);
 Route::put('/designation/{id}', [DesignationMasterController::class, 'update']);
 Route::delete('/designation/{id}', [DesignationMasterController::class, 'destroy']);
   
-Route::post('/employee', [EmployeeMasterController::class, 'store'])->middleware('auth:sanctum');
-Route::get('/employee/{id}', [EmployeeMasterController::class, 'show'])->middleware('auth:sanctum');
-Route::put('/employee/{id}', [EmployeeMasterController::class, 'update'])->middleware('auth:sanctum');
-Route::delete('/employee/{id}', [EmployeeMasterController::class, 'destroy'])->middleware('auth:sanctum');
+// Route::post('/employee', [EmployeeMasterController::class, 'store'])->middleware('auth:sanctum');
+// Route::get('/employee/{id}', [EmployeeMasterController::class, 'show']);
+// Route::put('/employee/{id}', [EmployeeMasterController::class, 'update']);
+// Route::delete('/employee/{id}', [EmployeeMasterController::class, 'destroy']);
  
+// Route::middleware(['auth:sanctum', 'AttachCompanyYear'])->group(function () {
+//     Route::post('/employee', [EmployeeMasterController::class, 'store']);
+//     Route::get('/employee/{id}', [EmployeeMasterController::class, 'show']);
+//     Route::put('/employee/{id}', [EmployeeMasterController::class, 'update']);
+//     Route::delete('/employee/{id}', [EmployeeMasterController::class, 'destroy']);
+// });
+
+// Route::middleware(['auth:sanctum', 'api-session'])->group(function () {
+//     Route::post('/employee', [EmployeeMasterController::class, 'store']);
+//     Route::get('/employee/{id}', [EmployeeMasterController::class, 'show']);
+//     Route::put('/employee/{id}', [EmployeeMasterController::class, 'update']);
+//     Route::delete('/employee/{id}', [EmployeeMasterController::class, 'destroy']);
+// });
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::post('/employee', [EmployeeMasterController::class, 'store']);
+    Route::get('/employee/{id}', [EmployeeMasterController::class, 'show']);
+    Route::put('/employee/{id}', [EmployeeMasterController::class, 'update']);
+    Route::delete('/employee/{id}', [EmployeeMasterController::class, 'destroy']);
+});
+
+
 
 Route::get('/years', [YearMasterController::class, 'index']);
 Route::post('/years', [YearMasterController::class, 'store']);
@@ -53,3 +78,7 @@ Route::get('/states', [StateController::class, 'index']);
 
 Route::get('/countries', [CountryMasterController::class, 'index']);
 Route::get('/states', [StateController::class, 'index']);
+ 
+
+Route::post('/upload', [InvoiceDataUploadController::class, 'upload']);
+Route::post('/upload-invoice', [InvoiceController::class, 'upload']);

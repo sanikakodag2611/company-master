@@ -18,3 +18,18 @@ Route::post('/department/destroy/{id}', [DepartmentMasterController::class, 'des
 // use App\Http\Controllers\LoginController;
 
 // Route::post('/api/login', [LoginController::class, 'login']);
+Route::get('/check-zip', function () {
+    if (class_exists('ZipArchive')) {
+        return 'ZipArchive is available.';
+    } else {
+        return 'ZipArchive NOT available. Install php-zip.';
+    }
+});
+
+Route::get('/test-excel', function () {
+    if (class_exists(\Maatwebsite\Excel\Excel::class)) {
+        return 'Excel package is installed ✅';
+    } else {
+        return 'Excel package is NOT installed ❌';
+    }
+});

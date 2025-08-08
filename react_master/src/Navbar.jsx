@@ -22,6 +22,7 @@ const Navbar = () => {
             <li><Link to="/add-employee" style={styles.link}>Add Employee</Link></li>
             <li><Link to="/add-department" style={styles.link}>Add department</Link></li>
             <Link to="/designations" style={styles.link}>Designations</Link>
+            <Link to="/upload" style={styles.link}>Upload file</Link>
             
             <li><button onClick={handleLogout} style={styles.button}>Logout</button></li>
           </>

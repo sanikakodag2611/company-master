@@ -31,10 +31,12 @@ return [
     | indicate that via the expire_on_close configuration option.
     |
     */
+ 
+ 
 
-    'lifetime' => (int) env('SESSION_LIFETIME', 120),
-
-    'expire_on_close' => env('SESSION_EXPIRE_ON_CLOSE', false),
+    'lifetime' => 120, // Session lifetime in minutes
+    'expire_on_close' => false, // End session when browser closes
+    'encrypt' => false, // Encrypt session data
 
     /*
     |--------------------------------------------------------------------------
@@ -47,7 +49,7 @@ return [
     |
     */
 
-    'encrypt' => env('SESSION_ENCRYPT', false),
+    // 'encrypt' => env('SESSION_ENCRYPT', false),
 
     /*
     |--------------------------------------------------------------------------
