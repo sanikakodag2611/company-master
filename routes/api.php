@@ -81,4 +81,13 @@ Route::get('/states', [StateController::class, 'index']);
  
 
 Route::post('/upload', [InvoiceDataUploadController::class, 'upload']);
-Route::post('/upload-invoice', [InvoiceController::class, 'upload']);
+Route::get('/invoices', [InvoiceController::class, 'index']); 
+// Route::post('/upload-invoice', [InvoiceController::class, 'upload']);
+Route::post('/invoices/import', [InvoiceController::class, 'import'])->name('invoices.import');
+
+Route::post('/upload-invoice', [InvoiceController::class, 'import']);
+Route::get('/invoices', [InvoiceController::class, 'index']);
+
+use App\Http\Controllers\AugustInvoiceUploadController;
+
+Route::post('/upload-august-invoices', [AugustInvoiceUploadController::class, 'upload']);

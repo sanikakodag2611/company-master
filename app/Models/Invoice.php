@@ -43,4 +43,23 @@ class Invoice extends Model
         'freight',
         'destination',
     ];
+
+    protected $casts = [
+    'bill_amount' => 'float',
+    'gst_tds_tax_rate' => 'float',
+    'gst_tds_tax_amount' => 'float',
+    'rate' => 'float',
+    'amount' => 'float',
+    'taxable_amount' => 'float',
+    'cgst_rate' => 'float',
+    'cgst_amt' => 'float',
+    'sgst_rate' => 'float',
+    'sgst_amt' => 'float',
+    'igst_rate' => 'float',
+    'igst_amt' => 'float',
+    'tax_amount' => 'float',
+    'round_off' => 'float',
+    'freight' => 'float',
+];
+
 }
