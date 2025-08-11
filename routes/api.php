@@ -59,14 +59,33 @@ Route::delete('/designation/{id}', [DesignationMasterController::class, 'destroy
 //     Route::delete('/employee/{id}', [EmployeeMasterController::class, 'destroy']);
 // });
 
-Route::middleware(['auth:sanctum'])->group(function () {
+// Route::middleware(['auth:sanctum'])->group(function () {
+//     Route::post('/employee', [EmployeeMasterController::class, 'store']);
+//     Route::get('/employee/{id}', [EmployeeMasterController::class, 'show']);
+//     Route::put('/employee/{id}', [EmployeeMasterController::class, 'update']);
+//     Route::delete('/employee/{id}', [EmployeeMasterController::class, 'destroy']);
+// });
+// Route::middleware(['check.companyyear'])->group(function () {
+// // Route::middleware(['auth:sanctum', 'check.session'])->group(function () {
+//     Route::post('/employee', [EmployeeMasterController::class, 'store']);
+//     Route::get('/employee/{id}', [EmployeeMasterController::class, 'show']);
+//     Route::put('/employee/{id}', [EmployeeMasterController::class, 'update']);
+//     Route::delete('/employee/{id}', [EmployeeMasterController::class, 'destroy']);
+// });
+
+Route::post('/login', [LoginMasterController::class, 'login']);
+
+// Routes protected by Sanctum auth middleware
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout', [LoginMasterController::class, 'logout']);
+
+    // Employee CRUD
     Route::post('/employee', [EmployeeMasterController::class, 'store']);
     Route::get('/employee/{id}', [EmployeeMasterController::class, 'show']);
     Route::put('/employee/{id}', [EmployeeMasterController::class, 'update']);
     Route::delete('/employee/{id}', [EmployeeMasterController::class, 'destroy']);
 });
-
-
+Route::post('/employees/public-create', [EmployeeMasterController::class, 'store']);
 
 Route::get('/years', [YearMasterController::class, 'index']);
 Route::post('/years', [YearMasterController::class, 'store']);
@@ -87,7 +106,8 @@ Route::post('/invoices/import', [InvoiceController::class, 'import'])->name('inv
 
 Route::post('/upload-invoice', [InvoiceController::class, 'import']);
 Route::get('/invoices', [InvoiceController::class, 'index']);
-
+Route::post('/invoices/update-duplicates', [InvoiceController::class, 'updateDuplicates']);
+ 
 use App\Http\Controllers\AugustInvoiceUploadController;
 
 Route::post('/upload-august-invoices', [AugustInvoiceUploadController::class, 'upload']);

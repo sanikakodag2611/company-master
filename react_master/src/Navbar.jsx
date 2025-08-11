@@ -1,37 +1,37 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
-const Navbar = () => {
+function Navbar({ isLoggedIn, setIsLoggedIn }) {
   const navigate = useNavigate();
- 
 
   const handleLogout = () => {
     localStorage.removeItem('auth_token');
-    navigate('/login');
+    setIsLoggedIn(false);
+    navigate('/login', { replace: true });
   };
 
   return (
     <nav style={styles.navbar}>
-     
       <ul style={styles.navLinks}>
-        
-        
+        {!isLoggedIn ? (<>
+        <li><Link to="/login" style={styles.link}>Login</Link></li>
+           <li><Link to="/add-employee" style={styles.link}>Add Employee</Link></li>
+        </>
+          
+        ) : (
           <>
-          <li><Link to="/login" style={styles.link}>Login </Link></li>
-            <Link to="/company" style={styles.link}>Company</Link>
-            <li><Link to="/add-employee" style={styles.link}>Add Employee</Link></li>
-            <li><Link to="/add-department" style={styles.link}>Add department</Link></li>
-            <Link to="/designations" style={styles.link}>Designations</Link>
-            <Link to="/upload" style={styles.link}>Upload file</Link>
-            
+           
+            <li><Link to="/add-department" style={styles.link}>Add Department</Link></li>
+            <li><Link to="/designations" style={styles.link}>Designations</Link></li>
+            <li><Link to="/company" style={styles.link}>Company</Link></li>
+            <li><Link to="/upload" style={styles.link}>Upload File</Link></li>
             <li><button onClick={handleLogout} style={styles.button}>Logout</button></li>
           </>
-        
-       
+        )}
       </ul>
     </nav>
   );
-};
+}
 
 const styles = {
   navbar: {
@@ -41,10 +41,6 @@ const styles = {
     justifyContent: 'space-between',
     alignItems: 'center',
     color: 'white',
-  },
-  logo: {
-    fontSize: '20px',
-    fontWeight: 'bold',
   },
   navLinks: {
     listStyle: 'none',

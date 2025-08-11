@@ -1,40 +1,41 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
-function Login() {
+function Login({ setIsLoggedIn }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState('');
+  const navigate = useNavigate();
 
-const handleLogin = async (e) => {
-  e.preventDefault();
-  setMessage('');
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setMessage('');
 
-  try {
-    const response = await axios.post('http://localhost:8000/api/login' , {
-      withCredentials: true ,
-      username,
-      password,
-    });
+    try {
+      const response = await axios.post('http://localhost:8000/api/login', {
+        username,
+        password,
+      });
 
-    if (response.data.status) {
-      const token = response.data.token;
-      
-      if (token) {
-        localStorage.setItem('auth_token', token);
-        console.log('Token stored:', token);
+      if (response.data.status) {
+        const token = response.data.token;
+
+        if (token) {
+          localStorage.setItem('auth_token', token);
+          setIsLoggedIn(true);              // <-- update app login state
+          navigate('/add-employee');        // <-- redirect after login
+        } else {
+          setMessage('No token received from server.');
+        }
       } else {
-        console.log('No token in response');
+        setMessage('Login failed: ' + (response.data.message || 'Unknown error'));
       }
-
-      setMessage('Login successful!');
+    } catch (error) {
+      console.error(error);
+      setMessage('Login failed: ' + (error.response?.data?.message || 'Server error'));
     }
-  } catch (error) {
-    console.error(error);
-    setMessage('Login failed: ' + (error.response?.data?.message || 'Server error'));
-  }
-};
-
+  };
 
   return (
     <div style={{ padding: 20 }}>
@@ -45,6 +46,7 @@ const handleLogin = async (e) => {
           placeholder="Username"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
+          required
         /><br /><br />
 
         <input
@@ -52,6 +54,7 @@ const handleLogin = async (e) => {
           placeholder="Password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          required
         /><br /><br />
 
         <button type="submit">Login</button>

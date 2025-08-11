@@ -14,8 +14,7 @@ class InvoiceImport implements ToModel, WithHeadingRow
 
     public function __construct()
     {
-        // Load all existing 'no' values once to prevent repeated DB queries
-        $this->existingNos = Invoice::pluck('no')->map(fn($v) => trim($v))->toArray();
+        $this->existingNos = Invoice::pluck('no')->map(fn($v) => trim((string)$v))->toArray();
     }
 
     public function headingRow(): int
@@ -25,81 +24,139 @@ class InvoiceImport implements ToModel, WithHeadingRow
 
     public function model(array $row)
     {
+        // Normalize headers
+        $mapped = [];
+        foreach ($row as $origKey => $value) {
+            $k = $this->normalizeHeader((string)$origKey);
+            $mapped[$k] = $value;
+        }
+
+        $get = fn($key) => $mapped[$key] ?? null;
+        $no = trim((string)($get('no') ?? ''));
+
+        // Skip if no invoice number
+        if ($no === '') {
+            return null;
+        }
+
+        // Check for duplicate invoice number
+        if (in_array($no, $this->existingNos, true)) {
+            $rowLog = $mapped;
+            $rowLog['reason'] = 'Duplicate no';
+            $this->skippedRows[] = $rowLog;
+            return null;
+        }
+
+        // Amount-related fields to store as-is
         $amountFields = [
-            'bill_amount', 'gst_tds_tax_rate', 'gst_tds_tax_amount', 'rate', 'amount',
-            'taxable_amount', 'cgst_rate', 'cgst_amt', 'sgst_rate', 'sgst_amt',
-            'igst_rate', 'igst_amt', 'tax_amount', 'round_off', 'freight'
+            'bill_amount',
+            'gst_tds_tax_rate',
+            'gst_tds_tax_amount',
+            'rate',
+            'amount',
+            'taxable_amount',
+            'cgst_rate',
+            'cgst_amt',
+            'sgst_rate',
+            'sgst_amt',
+            'igst_rate',
+            'igst_amt',
+            'tax_amount',
+            'round_off',
+            'freight',
         ];
 
-        // Normalize keys and clean values
-        $normalizedRow = [];
-        foreach ($row as $key => $value) {
-            $cleanKey = preg_replace('/[^a-z0-9_]/', '_', strtolower($key));
-            $cleanKey = preg_replace('/_+/', '_', $cleanKey);
+        $rowHasIssues = false;
+        $originalAmounts = [];
 
-            if (in_array($cleanKey, $amountFields)) {
-                $normalizedRow[$cleanKey] = $this->autoCleanCurrency($value);
-            } else {
-                $normalizedRow[$cleanKey] = $this->autoCleanCurrency($value);
+        foreach ($amountFields as $field) {
+            $val = $get($field);
+            $originalAmounts[$field] = $val;
+
+            // Check for empty values
+            if ($val === null || $val === '') {
+                $rowHasIssues = true;
+                $mapped['reason'] = trim(($mapped['reason'] ?? '') . "Missing value in '{$field}'; ");
             }
         }
 
-        $no = trim($normalizedRow['no'] ?? '');
+        $this->existingNos[] = $no;
 
-        if ($no === '') {
-            // Skip rows with empty 'no'
+        // Log skipped rows if there are issues
+        if ($rowHasIssues) {
+            $log = array_merge($mapped, $originalAmounts);
+            $this->skippedRows[] = $log;
             return null;
         }
 
-        // Skip duplicates (existing in DB or already imported in this batch)
-        if (in_array($no, $this->existingNos)) {
-            $normalizedRow['reason'] = 'Duplicate no';
-            $this->skippedRows[] = $normalizedRow;
-            return null;
-        }
-
-        $this->existingNos[] = $no; // track to avoid duplicates in same import
-
+        // Store exactly as they are in Excel
         return new Invoice([
             'no' => $no,
-            'date' => $this->convertDate($normalizedRow['date'] ?? null),
-            'customer' => $normalizedRow['customer'] ?? null,
-            'salesman' => $normalizedRow['salesman'] ?? null,
-            'bill_amount' => $normalizedRow['bill_amount'] ?? null,
-            'voucher_party_gst_no' => $normalizedRow['voucher_party_gst_no'] ?? null,
-            'party_code' => $normalizedRow['party_code'] ?? null,
-            'sales_gst_type' => $normalizedRow['sales_gst_type'] ?? null,
-            'city' => $normalizedRow['city'] ?? null,
-            'gst_tds_tax_rate' => $normalizedRow['gst_tds_tax_rate'] ?? null,
-            'gst_tds_tax_amount' => $normalizedRow['gst_tds_tax_amount'] ?? null,
-            'voucher_id' => $normalizedRow['voucher_id'] ?? null,
-            'item' => $normalizedRow['item'] ?? null,
-            'code' => $normalizedRow['code'] ?? null,
-            'hsn_code' => $normalizedRow['hsn_code'] ?? null,
-            'unit' => $normalizedRow['unit'] ?? null,
-            'qty' => $normalizedRow['qty'] ?? null,
-            'rate' => $normalizedRow['rate'] ?? null,
-            'amount' => $normalizedRow['amount'] ?? null,
-            'tax_code' => $normalizedRow['tax_code'] ?? null,
-            'taxable_amount' => $normalizedRow['taxable_amount'] ?? null,
-            'cgst_rate' => $normalizedRow['cgst_rate'] ?? null,
-            'cgst_amt' => $normalizedRow['cgst_amt'] ?? null,
-            'sgst_rate' => $normalizedRow['sgst_rate'] ?? null,
-            'sgst_amt' => $normalizedRow['sgst_amt'] ?? null,
-            'igst_rate' => $normalizedRow['igst_rate'] ?? null,
-            'igst_amt' => $normalizedRow['igst_amt'] ?? null,
-            'tax_amount' => $normalizedRow['tax_amount'] ?? null,
-            'round_off' => $normalizedRow['round_off'] ?? null,
-            'einvoice_no' => $normalizedRow['einvoice_no'] ?? null,
-            'eway_bill_no' => $normalizedRow['eway_bill_no'] ?? null,
-            'eway_bill_date' => $this->convertDate($normalizedRow['eway_bill_date'] ?? null),
-            'freight' => $normalizedRow['freight'] ?? null,
-            'destination' => $normalizedRow['destination'] ?? null,
+            'date' => $this->convertDate($get('date')),
+            'customer' => $get('customer'),
+            'salesman' => $get('salesman'),
+            'bill_amount' => $originalAmounts['bill_amount'],
+            'gst_tds_tax_rate' => $originalAmounts['gst_tds_tax_rate'],
+            'gst_tds_tax_amount' => $originalAmounts['gst_tds_tax_amount'],
+            'rate' => $originalAmounts['rate'],
+            'amount' => $originalAmounts['amount'],
+            'taxable_amount' => $originalAmounts['taxable_amount'],
+            'cgst_rate' => $originalAmounts['cgst_rate'],
+            'cgst_amt' => $originalAmounts['cgst_amt'],
+            'sgst_rate' => $originalAmounts['sgst_rate'],
+            'sgst_amt' => $originalAmounts['sgst_amt'],
+            'igst_rate' => $originalAmounts['igst_rate'],
+            'igst_amt' => $originalAmounts['igst_amt'],
+            'tax_amount' => $originalAmounts['tax_amount'],
+            'round_off' => $originalAmounts['round_off'],
+            'freight' => $originalAmounts['freight'],
+            'voucher_party_gst_no' => $get('voucher_party_gst_no'),
+            'party_code' => $get('party_code'),
+            'sales_gst_type' => $get('sales_gst_type'),
+            'city' => $get('city'),
+            'voucher_id' => $get('voucher_id'),
+            'item' => $get('item'),
+            'code' => $get('code'),
+            'hsn_code' => $get('hsn_code'),
+            'unit' => $get('unit'),
+            'qty' => $get('qty'),
+            'tax_code' => $get('tax_code'),
+            'einvoice_no' => $get('einvoice_no'),
+            'eway_bill_no' => $get('eway_bill_no'),
+            'eway_bill_date' => $this->convertDate($get('eway_bill_date')),
+            'destination' => $get('destination'),
         ]);
+    }
+
+    private function normalizeHeader(string $h): string
+    {
+        $h = trim(mb_strtolower($h));
+        $h = preg_replace('/[^a-z0-9]+/u', '_', $h);
+        $h = trim($h, '_');
+
+        // Map variations to DB field names
+        $map = [
+            'bill_amountrs' => 'bill_amount',
+            'gst_tds_tax_raters' => 'gst_tds_tax_rate',
+            'gst_tds_tax_amountrs' => 'gst_tds_tax_amount',
+            'amountrs' => 'amount',
+            'taxable_amountrs' => 'taxable_amount',
+            'cgst_amtrs' => 'cgst_amt',
+            'sgst_amtrs' => 'sgst_amt',
+            'igst_amtrs' => 'igst_amt',
+            'tax_amountrs' => 'tax_amount',
+            'round_offrs' => 'round_off'
+        ];
+
+        return $map[$h] ?? $h;
     }
 
     private function convertDate($value)
     {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
         if (is_numeric($value)) {
             try {
                 return ExcelDate::excelToDateTimeObject($value)->format('Y-m-d');
@@ -108,32 +165,12 @@ class InvoiceImport implements ToModel, WithHeadingRow
             }
         }
 
-        return !empty($value) ? date('Y-m-d', strtotime($value)) : null;
+        $ts = strtotime((string)$value);
+        return $ts ? date('Y-m-d', $ts) : null;
     }
 
-    private function autoCleanCurrency($value)
+    public function getSkippedRows(): array
     {
-        if (is_null($value) || $value === '') {
-            return null;
-        }
-
-        if (is_numeric($value)) {
-            return $value + 0;
-        }
-
-        if (is_string($value) && (str_contains($value, '₹') || str_contains($value, ',') || preg_match('/^\(.*\)$/', $value))) {
-            $clean = str_replace(['₹', ',', ' '], '', $value);
-
-            // Handle negative numbers in parentheses
-            if (preg_match('/^\(.*\)$/', $value)) {
-                $clean = '-' . trim($clean, '()');
-            }
-
-            if (is_numeric($clean)) {
-                return (float)$clean;
-            }
-        }
-
-        return $value;
+        return $this->skippedRows;
     }
 }

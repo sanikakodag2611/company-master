@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Navbar from './Navbar'; 
 import Login from './login';
 import AddEmployee from './AddEmployee';
@@ -7,19 +7,47 @@ import DepartmentForm from './Department/DepartmentForm';
 import DesignationForm from './Designation/DesignationForm';
 import CompanyMasterForm from './Company/CompanyMasterForm';
 import UploadExcel from './UploadExcel';
+
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    setIsLoggedIn(!!token);
+  }, []);
+
   return (
     <Router>
-      <Navbar />
+      <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
       <div style={{ padding: '20px' }}>
         <Routes>
-          <Route path="/" element={<Login />} />
-          <Route path="/login" element={<Login />} />
+          <Route
+            path="/login"
+            element={isLoggedIn ? <Navigate to="/add-employee" replace /> : <Login setIsLoggedIn={setIsLoggedIn} />}
+          />
+          <Route
+            path="/"
+            element={<Navigate to={isLoggedIn ? "/add-employee" : "/login"} replace />}
+          />
+          {/* Public route */}
           <Route path="/add-employee" element={<AddEmployee />} />
-          <Route path="/add-department" element={< DepartmentForm />} />
-          <Route path="/designations" element={<DesignationForm />} />
-          <Route path="/company" element={<CompanyMasterForm />} />
-          <Route path="/upload" element={<UploadExcel/>} />
+          {/* Protected routes */}
+          <Route
+            path="/add-department"
+            element={isLoggedIn ? <DepartmentForm /> : <Navigate to="/login" replace />}
+          />
+          <Route
+            path="/designations"
+            element={isLoggedIn ? <DesignationForm /> : <Navigate to="/login" replace />}
+          />
+          <Route
+            path="/company"
+            element={isLoggedIn ? <CompanyMasterForm /> : <Navigate to="/login" replace />}
+          />
+          <Route
+            path="/upload"
+            element={isLoggedIn ? <UploadExcel /> : <Navigate to="/login" replace />}
+          />
         </Routes>
       </div>
     </Router>

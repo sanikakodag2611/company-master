@@ -43,48 +43,56 @@ const AddEmployee = () => {
   };
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    axios.post('http://localhost:8000/api/employee', formData, {
-  headers: {
-    Authorization: `Bearer ${localStorage.getItem('auth_token')}`
+  const isLoggedIn = !!localStorage.getItem('auth_token');
+
+  const url = isLoggedIn
+    ? 'http://localhost:8000/api/employee'  // protected route with auth
+    : 'http://localhost:8000/api/employees/public-create';  // public route
+
+  const headers = {};
+
+  if (isLoggedIn) {
+    headers['Authorization'] = `Bearer ${localStorage.getItem('auth_token')}`;
   }
-})
-      .then(() => {
-        alert("Employee added successfully");
-        setFormData({
-          employee_name: '',
-          email: '',
-          username: '',
-          password: '',
-          contact_no: '',
-          address: '',
-          date_of_birth: '',
-          gender: '',
-          state_id: '',
-          city: '',
-          pan_card: '',
-          designation_id: '',
-          department_id: '',
-          company_id: '',
-          year_id: '',
-          status: '',
-        });
-      })
-      .catch(err => {
-        if (err.response && err.response.data) {
-          const errors = err.response.data.errors;
-          if (errors) {
-            const errorMessages = Object.values(errors).flat().join('\n');
-            alert("Validation Errors:\n" + errorMessages);
-          } else {
-            alert(err.response.data.message || "Failed to add employee");
-          }
-        } else {
-          alert("Server error. Please try again later.");
-        }
+
+  axios.post(url, formData, { headers })
+    .then(() => {
+      alert("Employee added successfully");
+      setFormData({
+        employee_name: '',
+        email: '',
+        username: '',
+        password: '',
+        contact_no: '',
+        address: '',
+        date_of_birth: '',
+        gender: '',
+        state_id: '',
+        city: '',
+        pan_card: '',
+        designation_id: '',
+        department_id: '',
+        company_id: '',
+        year_id: '',
+        status: '',
       });
-  };
+    })
+    .catch(err => {
+      if (err.response && err.response.data) {
+        const errors = err.response.data.errors;
+        if (errors) {
+          const errorMessages = Object.values(errors).flat().join('\n');
+          alert("Validation Errors:\n" + errorMessages);
+        } else {
+          alert(err.response.data.message || "Failed to add employee");
+        }
+      } else {
+        alert("Server error. Please try again later.");
+      }
+    });
+};
 
   return (
     <div>
