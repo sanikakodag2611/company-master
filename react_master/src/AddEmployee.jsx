@@ -48,8 +48,8 @@ const AddEmployee = () => {
   const isLoggedIn = !!localStorage.getItem('auth_token');
 
   const url = isLoggedIn
-    ? 'http://localhost:8000/api/employee'  // protected route with auth
-    : 'http://localhost:8000/api/employees/public-create';  // public route
+    ? 'http://localhost:8000/api/employee'   
+    : 'http://localhost:8000/api/employees/public-create';   
 
   const headers = {};
 

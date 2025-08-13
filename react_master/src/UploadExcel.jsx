@@ -2,51 +2,117 @@ import React, { useState, useRef, useCallback, memo } from "react";
 import axios from "axios";
 import { v4 as uuidv4 } from "uuid";
 
+// Helper: Convert Excel serial date (number) to JS Date
+function excelDateToJSDate(serial) {
+   
+  if (typeof serial !== "number") return null;
+  const utc_days = Math.floor(serial - 25569);
+  const utc_value = utc_days * 86400 * 1000;
+  const date_info = new Date(utc_value);
+  return date_info;
+}
+
 function UploadExcel() {
   const [file, setFile] = useState(null);
   const [message, setMessage] = useState("");
   const [skippedRows, setSkippedRows] = useState([]);
-  const [existingDuplicates, setExistingDuplicates] = useState([]);
   const [selectedRows, setSelectedRows] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [updateLoading, setUpdateLoading] = useState(false);
   const [activeEdit, setActiveEdit] = useState({ rowId: null, key: null });
 
   const fileInputRef = useRef();
 
-  /** Handle file selection */
-  const handleFileChange = (e) => {
+  const keyMap = {
+    no: ["no", "invoice_no", "invoice no", "invoiceno", "invoice_number"],
+    date: ["date", "invoice_date", "invoice date", "dateofinvoice"],
+    customer: ["customer", "customer_name", "client", "client_name"],
+    salesman: ["salesman", "sales_person", "sales person", "salesman_name"],
+    bill_amount: ["bill_amount", "bill amount", "amount", "billamount", "total_amount"],
+    city: ["city", "location", "town"],
+    item: ["item", "product", "description", "product_description"],
+    qty: ["qty", "quantity", "qtyordered"],
+    rate: ["rate", "price", "unit_price"],
+    destination: ["destination", "dest", "ship_to"],
+    tax_amount: ["tax_amount", "tax amount", "tax", "taxamt"],
+  };
+
+  const displayedColumns = Object.keys(keyMap);
+
+  const columnLabels = {
+    no: "Invoice No",
+    date: "Date",
+    customer: "Customer",
+    salesman: "Salesman",
+    bill_amount: "Bill Amount",
+    city: "City",
+    item: "Item",
+    qty: "Qty",
+    rate: "Rate",
+    destination: "Destination",
+    tax_amount: "Tax Amount",
+  };
+
+  // Normalize keys of incoming row
+  const normalizeRowKeys = (row) => {
+    const lowerCaseRow = {};
+    Object.keys(row).forEach((k) => {
+      lowerCaseRow[k.toLowerCase().replace(/\s|_/g, "")] = row[k];
+    });
+
+    const normalized = {};
+    for (const [standardKey, aliases] of Object.entries(keyMap)) {
+      normalized[standardKey] = "";
+      for (const alias of aliases) {
+        const normAlias = alias.replace(/\s|_/g, "");
+        if (lowerCaseRow.hasOwnProperty(normAlias)) {
+          normalized[standardKey] = lowerCaseRow[normAlias];
+          break;
+        }
+      }
+    }
+    return normalized;
+  };
+
+  const handleFileChange = useCallback((e) => {
     setFile(e.target.files[0]);
     setMessage("");
     setSkippedRows([]);
-    setExistingDuplicates([]);
     setSelectedRows([]);
     setActiveEdit({ rowId: null, key: null });
-  };
+  }, []);
 
-  /** Upload file and receive skipped + duplicate data */
-  const handleUpload = async () => {
-    if (!file) return alert("Please select an Excel file!");
-    setLoading(true);
-
-    const formData = new FormData();
-    formData.append("file", file);
-
+  const handleUpload = useCallback(async () => {
+    if (!file) {
+      alert("Please select an Excel file!");
+      return;
+    }
+    setUploadLoading(true);
+    setMessage("");
     try {
+      const formData = new FormData();
+      formData.append("file", file);
+
       const res = await axios.post("http://localhost:8000/api/upload-invoice", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
 
       setMessage(res.data.message || "Upload completed");
 
-      // Add stable unique IDs to skipped rows
       const skipped = Array.isArray(res.data.skipped)
-        ? res.data.skipped.map((row) => ({ ...row, rowId: uuidv4() }))
+        ? res.data.skipped.map((row) => {
+            const normalized = normalizeRowKeys(row);
+            // Convert Excel date if numeric
+            let dateValue = normalized.date;
+            if (typeof dateValue === "number") {
+              const jsDate = excelDateToJSDate(dateValue);
+              normalized.date = jsDate ? jsDate.toISOString().split("T")[0] : dateValue;
+            }
+            return { ...normalized, rowId: uuidv4() };
+          })
         : [];
 
       setSkippedRows(skipped);
-      setExistingDuplicates(
-        Array.isArray(res.data.existingDuplicates) ? res.data.existingDuplicates : []
-      );
 
       setFile(null);
       if (fileInputRef.current) fileInputRef.current.value = null;
@@ -54,108 +120,97 @@ function UploadExcel() {
       console.error(err);
       setMessage(err.response?.data?.message || "Upload failed: " + err.message);
     } finally {
-      setLoading(false);
+      setUploadLoading(false);
     }
-  };
+  }, [file]);
 
-  /** Toggle single row selection */
-  const toggleSelection = (rowId) => {
-    setSelectedRows((prev) =>
-      prev.includes(rowId) ? prev.filter((id) => id !== rowId) : [...prev, rowId]
-    );
-  };
+  const toggleSelection = useCallback(
+    (rowId) => {
+      setSelectedRows((prev) =>
+        prev.includes(rowId) ? prev.filter((id) => id !== rowId) : [...prev, rowId]
+      );
+    },
+    []
+  );
 
-  /** Toggle select/deselect all skipped rows */
-  const toggleSelectAll = (checked) => {
-    const allIds = skippedRows.map((row) => row.rowId);
-    setSelectedRows(checked ? allIds : []);
-  };
+  const toggleSelectAll = useCallback(
+    (checked) => {
+      const allIds = skippedRows.map((row) => row.rowId);
+      setSelectedRows(checked ? allIds : []);
+    },
+    [skippedRows]
+  );
 
-  /** Edit cell content */
   const handleEditCell = useCallback((rowId, key, value) => {
     setSkippedRows((prev) =>
-      prev.map((row) =>
-        row.rowId === rowId ? { ...row, [key]: value } : row
-      )
+      prev.map((row) => (row.rowId === rowId ? { ...row, [key]: value } : row))
     );
   }, []);
 
-  /** Focus on editable cell */
-  const focusCell = (rowId, key) => {
+  const focusCell = useCallback((rowId, key) => {
     setActiveEdit({ rowId, key });
-  };
+  }, []);
 
-  /** Exit editing mode */
-  const exitEditMode = () => {
+  const exitEditMode = useCallback(() => {
     setActiveEdit({ rowId: null, key: null });
-  };
+  }, []);
 
-  /** Validate rows before sending update */
-  const validateBeforeUpdate = (rows) => {
+  const validateBeforeUpdate = useCallback((rows) => {
     for (const row of rows) {
       for (const key of Object.keys(row)) {
         const val = row[key];
         if (key.toLowerCase().includes("date") && val && isNaN(Date.parse(val))) {
-          alert(`Row ${row.no}: Invalid date format in "${key}"`);
+          alert(`Invoice No ${row.no || "N/A"}: Invalid date format in "${key}"`);
           return false;
         }
         if (key.toLowerCase().includes("amount") && val && isNaN(Number(val))) {
-          alert(`Row ${row.no}: "${key}" must be numeric`);
+          alert(`Invoice No ${row.no || "N/A"}: "${key}" must be numeric`);
+          return false;
+        }
+        if (key.toLowerCase() === "qty" && val && isNaN(Number(val))) {
+          alert(`Invoice No ${row.no || "N/A"}: "qty" must be numeric`);
           return false;
         }
       }
     }
     return true;
-  };
+  }, []);
 
-  /** Update selected rows */
-  const updateSelected = async () => {
+  const updateSelected = useCallback(async () => {
     if (selectedRows.length === 0) {
       alert("Please select at least one row to update.");
       return;
     }
+    setUpdateLoading(true);
 
-    // Get rows to update from skippedRows
-    const rowsToUpdate = skippedRows.filter((row) =>
-      selectedRows.includes(row.rowId)
-    );
+    const rowsToUpdate = skippedRows.filter((row) => selectedRows.includes(row.rowId));
 
-    // Optionally send originalNo if backend needs it
-    const rowsWithOriginalId = rowsToUpdate.map((row) => ({
+    const rowsToSend = rowsToUpdate.map((row) => ({
       ...row,
       originalNo: row.no,
     }));
 
-    if (!validateBeforeUpdate(rowsWithOriginalId)) return;
+    if (!validateBeforeUpdate(rowsToSend)) {
+      setUpdateLoading(false);
+      return;
+    }
 
     try {
-      await axios.post("http://localhost:8000/api/invoices/update-duplicates", {
-        rows: rowsWithOriginalId,
+      const response = await axios.post("http://localhost:8000/api/invoices/update-duplicates", {
+        rows: rowsToSend,
       });
 
-      // Remove updated rows from skippedRows
+      setMessage(response.data.message || "Selected records updated successfully!");
       setSkippedRows((prev) => prev.filter((row) => !selectedRows.includes(row.rowId)));
-
-      // Remove updated rows from existingDuplicates by matching normalized 'no'
-      const updatedNos = new Set(
-        rowsToUpdate.map((r) => r.no?.toString().trim().toUpperCase())
-      );
-
-      setExistingDuplicates((prev) =>
-        prev.filter((dup) => !updatedNos.has(dup.no?.toString().trim().toUpperCase()))
-      );
-
       setSelectedRows([]);
       exitEditMode();
-      setMessage("Selected records updated successfully!");
     } catch (err) {
-      console.error(err);
-      alert("Failed to update records.");
+      console.error("Update failed:", err.response?.data || err.message || err);
+      alert("Failed to update records. Please check console for details.");
+    } finally {
+      setUpdateLoading(false);
     }
-  };
-
-  // Derive table headers from skippedRows (exclude rowId)
-  const headers = skippedRows.length > 0 ? Object.keys(skippedRows[0]).filter((h) => h !== "rowId") : [];
+  }, [selectedRows, skippedRows, validateBeforeUpdate, exitEditMode]);
 
   return (
     <div style={{ padding: 20 }}>
@@ -167,10 +222,10 @@ function UploadExcel() {
           accept=".xlsx, .xls"
           onChange={handleFileChange}
           ref={fileInputRef}
-          disabled={loading}
+          disabled={uploadLoading || updateLoading}
         />
-        <button onClick={handleUpload} disabled={!file || loading}>
-          {loading ? "Uploading..." : "Upload"}
+        <button onClick={handleUpload} disabled={!file || uploadLoading || updateLoading}>
+          {uploadLoading ? "Uploading..." : "Upload"}
         </button>
       </div>
 
@@ -183,7 +238,7 @@ function UploadExcel() {
           <div style={{ marginBottom: 10 }}>
             <button
               onClick={updateSelected}
-              disabled={selectedRows.length === 0}
+              disabled={selectedRows.length === 0 || updateLoading}
               style={{
                 background: selectedRows.length === 0 ? "#ddd" : "#4CAF50",
                 color: selectedRows.length === 0 ? "#666" : "#fff",
@@ -192,27 +247,24 @@ function UploadExcel() {
                 cursor: selectedRows.length === 0 ? "not-allowed" : "pointer",
               }}
             >
-              Update Selected ({selectedRows.length})
+              {updateLoading ? "Updating..." : `Update Selected (${selectedRows.length})`}
             </button>
           </div>
 
           <div style={{ overflowX: "auto" }}>
-            <table
-              border="1"
-              cellPadding="6"
-              style={{ borderCollapse: "collapse", width: "100%" }}
-            >
+            <table border="1" cellPadding="6" style={{ borderCollapse: "collapse", width: "100%" }}>
               <thead>
                 <tr>
                   <th>
                     <input
                       type="checkbox"
+                      aria-label="Select all skipped rows"
                       checked={selectedRows.length === skippedRows.length && skippedRows.length > 0}
                       onChange={(e) => toggleSelectAll(e.target.checked)}
                     />
                   </th>
-                  {headers.map((h) => (
-                    <th key={h}>{h}</th>
+                  {displayedColumns.map((col) => (
+                    <th key={col}>{columnLabels[col] || col.replace(/_/g, " ").toUpperCase()}</th>
                   ))}
                 </tr>
               </thead>
@@ -222,46 +274,15 @@ function UploadExcel() {
                   <Row
                     key={row.rowId}
                     row={row}
-                    headers={headers}
+                    headers={displayedColumns}
                     isSelected={selectedRows.includes(row.rowId)}
                     toggleSelection={toggleSelection}
                     handleEditCell={handleEditCell}
                     focusCell={focusCell}
                     activeEdit={activeEdit}
                     exitEditMode={exitEditMode}
+                    updateLoading={updateLoading}
                   />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
-      )}
-
-      {existingDuplicates.length > 0 && (
-        <>
-          <h3>Existing Duplicates in Database</h3>
-
-          <div style={{ overflowX: "auto", marginTop: 16 }}>
-            <table
-              border="1"
-              cellPadding="6"
-              style={{ borderCollapse: "collapse", width: "100%" }}
-            >
-              <thead>
-                <tr>
-                  {Object.keys(existingDuplicates[0]).map((h) => (
-                    <th key={h}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-
-              <tbody>
-                {existingDuplicates.map((row, idx) => (
-                  <tr key={idx}>
-                    {Object.keys(row).map((h) => (
-                      <td key={h}>{row[h] ?? "N/A"}</td>
-                    ))}
-                  </tr>
                 ))}
               </tbody>
             </table>
@@ -281,30 +302,40 @@ const Row = memo(function Row({
   focusCell,
   activeEdit,
   exitEditMode,
+  updateLoading,
 }) {
   return (
     <tr>
       <td style={{ textAlign: "center" }}>
         <input
           type="checkbox"
+          aria-label={`Select row invoice no ${row.no || "N/A"}`}
           checked={isSelected}
-          onChange={() => toggleSelection(row.rowId)}
+          onChange={() => !updateLoading && toggleSelection(row.rowId)}
+          disabled={updateLoading}
         />
       </td>
       {headers.map((key) => {
-        const editing = activeEdit.rowId === row.rowId && activeEdit.key === key && isSelected;
+        const editing =
+          activeEdit.rowId === row.rowId && activeEdit.key === key && isSelected && !updateLoading;
+
+        const isEditable = key !== "no";  
+
+        const displayValue = row[key] ?? "N/A";
+
         return (
           <td
             key={key}
             onClick={(e) => {
               e.stopPropagation();
-              if (isSelected) focusCell(row.rowId, key);
+              if (isSelected && !updateLoading && isEditable) focusCell(row.rowId, key);
             }}
+            style={{ cursor: isSelected && !updateLoading && isEditable ? "pointer" : "default" }}
           >
-            {editing ? (
+            {editing && isEditable ? (
               <input
                 autoFocus
-                value={row[key] ?? ""}
+                value={displayValue}
                 onChange={(e) => handleEditCell(row.rowId, key, e.target.value)}
                 style={{ padding: "4px", border: "1px solid #ccc", width: "100%" }}
                 onClick={(e) => e.stopPropagation()}
@@ -316,7 +347,7 @@ const Row = memo(function Row({
                 }}
               />
             ) : (
-              row[key] ?? "N/A"
+              displayValue
             )}
           </td>
         );

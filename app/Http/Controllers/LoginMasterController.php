@@ -1,65 +1,82 @@
-<?php 
+<?php
+
 namespace App\Http\Controllers;
 
-use App\Http\Requests\LoginRequest;
+use App\Models\YearMaster;
 use App\Models\LoginMaster;
+use Illuminate\Http\Request;
+use App\Models\CompanyMaster;
+use App\Models\EmployeeMaster;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Session;
+
 
 class LoginMasterController extends Controller
+{ 
+public function login(Request $request)
 {
-    public function login(LoginRequest $request)
-    {
-        $login = LoginMaster::where('username', $request->username)->first();
+    $request->validate([
+        'username' => 'required',
+        'password' => 'required',
+        'year_id'  => 'required',
+    ]);
 
-        if (!$login || !Hash::check($request->password, $login->password)) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Invalid username or password'
-            ], 401);
-        }
+    $login = LoginMaster::where('username', $request->username)->first();
 
-        $employee = $login->employee;
-
-        if (!$employee) {
-            return response()->json([
-                'status' => false,
-                'message' => 'Employee not found'
-            ], 404);
-        }
-
-        $company = $employee->company;
-        $year = $employee->year;
-
-        // Create token with company and year info as abilities (optional)
-       $token = $login->createToken('auth_token')->plainTextToken;
-
+    if (!$login || !password_verify($request->password, $login->password)) {
         return response()->json([
-            'status' => true,
-            'message' => 'Login successful',
-            'token' => $token,
-            'company_id' => $company->id ?? null,
-            'year_id' => $year->id ?? null,
-            
+            'status' => false,
+            'message' => 'Invalid username or password',
         ]);
-
-        // return response()->json([
-        //     'status' => true,
-        //     'message' => 'Login successful',
-        //     'token' => $token,
-        //     'employee' => [
-        //         'id' => $employee->id,
-        //         'username' => $login->username,
-        //         'company_id' => $company->id ?? null,
-        //         'year_id' => $year->id ?? null,
-        //         'name' => $employee->employee_name,
-        //     ],
-        // ]);
     }
+
+    $employee = EmployeeMaster::find($login->employee_id);
+
+    if (!$employee) {
+        return response()->json([
+            'status' => false,
+            'message' => 'Employee not found',
+        ]);
+    }
+
+    // Store directly in session
+    Session::put('company_id', $employee->company_id);
+    Session::put('year_id', $request->year_id);
+
+    $token = $login->createToken('auth_token')->plainTextToken;
+
+    return response()->json([
+        'status' => true,
+        'message' => 'Login successful',
+        'token' => $token,
+        'employee' => [
+            'id' => $employee->id,
+            'username' => $login->username,
+            'company_id' => $employee->company_id,
+            'year_id' => $request->year_id,
+        ],
+        'session' => [
+            'company_id' => session('company_id'),
+            'year_id' => session('year_id'),
+        ],
+    ]);
+}
+
+
 
     public function logout(Request $request)
     {
         $request->user()->currentAccessToken()->delete();
+        session()->flush();
 
-        return response()->json(['message' => 'Logout successful']);
+        return response()->json([
+            'message' => 'Logout successful'
+        ]);
     }
+
 }
+
+
+
+ 
+    

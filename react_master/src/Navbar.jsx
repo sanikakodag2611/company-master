@@ -25,6 +25,9 @@ function Navbar({ isLoggedIn, setIsLoggedIn }) {
             <li><Link to="/designations" style={styles.link}>Designations</Link></li>
             <li><Link to="/company" style={styles.link}>Company</Link></li>
             <li><Link to="/upload" style={styles.link}>Upload File</Link></li>
+            <li><Link to="/bar-chart" style={styles.link}>Bar Chart</Link></li>
+            <li><Link to="/line-chart" style={styles.link}>Line Chart</Link></li>
+            <li><Link to="/pie-chart" style={styles.link}>Pie Chart</Link></li>           
             <li><button onClick={handleLogout} style={styles.button}>Logout</button></li>
           </>
         )}

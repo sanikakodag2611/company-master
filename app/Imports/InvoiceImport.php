@@ -14,17 +14,19 @@ class InvoiceImport implements ToModel, WithHeadingRow
 
     public function __construct()
     {
-        $this->existingNos = Invoice::pluck('no')->map(fn($v) => trim((string)$v))->toArray();
+        // Fetch existing invoice numbers from DB to avoid duplicates during import
+        $this->existingNos = Invoice::pluck('invoice_no')->map(fn($v) => trim((string)$v))->toArray();
     }
 
     public function headingRow(): int
     {
+        // Set the Excel heading row (adjust if your headings start on a different row)
         return 4;
     }
 
     public function model(array $row)
     {
-        // Normalize headers
+        // Normalize headers for consistency
         $mapped = [];
         foreach ($row as $origKey => $value) {
             $k = $this->normalizeHeader((string)$origKey);
@@ -32,123 +34,80 @@ class InvoiceImport implements ToModel, WithHeadingRow
         }
 
         $get = fn($key) => $mapped[$key] ?? null;
-        $no = trim((string)($get('no') ?? ''));
+        $invoiceNo = trim((string)($get('no') ?? ''));
 
-        // Skip if no invoice number
-        if ($no === '') {
+        // Skip row if invoice number is missing
+        if ($invoiceNo === '') {
             return null;
         }
 
-        // Check for duplicate invoice number
-        if (in_array($no, $this->existingNos, true)) {
+        // Skip duplicates
+        if (in_array($invoiceNo, $this->existingNos, true)) {
             $rowLog = $mapped;
-            $rowLog['reason'] = 'Duplicate no';
+            $rowLog['reason'] = 'Duplicate invoice_no';
             $this->skippedRows[] = $rowLog;
             return null;
         }
 
-        // Amount-related fields to store as-is
-        $amountFields = [
-            'bill_amount',
-            'gst_tds_tax_rate',
-            'gst_tds_tax_amount',
-            'rate',
-            'amount',
-            'taxable_amount',
-            'cgst_rate',
-            'cgst_amt',
-            'sgst_rate',
-            'sgst_amt',
-            'igst_rate',
-            'igst_amt',
-            'tax_amount',
-            'round_off',
-            'freight',
-        ];
+        // Parse numeric fields safely
+        $bill_amount = (float) $get('bill_amount');
+        $rate = (float) $get('rate');
+        $amount = (float) $get('amount');
+        $cgst_rate = (float) $get('cgst_rate');
+        $sgst_rate = (float) $get('sgst_rate');
+        $igst_rate = (float) $get('igst_rate');
+        $freight = (float) $get('freight');
+        $tax_amount = (float) $get('tax_amount');
+        $qty = is_numeric($get('qty')) ? (int) $get('qty') : null;
 
-        $rowHasIssues = false;
-        $originalAmounts = [];
+        // Calculate tax_per as sum of CGST, SGST and IGST rates
+        $tax_per = $cgst_rate + $sgst_rate + $igst_rate;
 
-        foreach ($amountFields as $field) {
-            $val = $get($field);
-            $originalAmounts[$field] = $val;
+        // Add invoice_no to existing list to avoid duplicates within this import batch
+        $this->existingNos[] = $invoiceNo;
 
-            // Check for empty values
-            if ($val === null || $val === '') {
-                $rowHasIssues = true;
-                $mapped['reason'] = trim(($mapped['reason'] ?? '') . "Missing value in '{$field}'; ");
-            }
-        }
-
-        $this->existingNos[] = $no;
-
-        // Log skipped rows if there are issues
-        if ($rowHasIssues) {
-            $log = array_merge($mapped, $originalAmounts);
-            $this->skippedRows[] = $log;
-            return null;
-        }
-
-        // Store exactly as they are in Excel
         return new Invoice([
-            'no' => $no,
+            'invoice_no' => $invoiceNo,
             'date' => $this->convertDate($get('date')),
             'customer' => $get('customer'),
             'salesman' => $get('salesman'),
-            'bill_amount' => $originalAmounts['bill_amount'],
-            'gst_tds_tax_rate' => $originalAmounts['gst_tds_tax_rate'],
-            'gst_tds_tax_amount' => $originalAmounts['gst_tds_tax_amount'],
-            'rate' => $originalAmounts['rate'],
-            'amount' => $originalAmounts['amount'],
-            'taxable_amount' => $originalAmounts['taxable_amount'],
-            'cgst_rate' => $originalAmounts['cgst_rate'],
-            'cgst_amt' => $originalAmounts['cgst_amt'],
-            'sgst_rate' => $originalAmounts['sgst_rate'],
-            'sgst_amt' => $originalAmounts['sgst_amt'],
-            'igst_rate' => $originalAmounts['igst_rate'],
-            'igst_amt' => $originalAmounts['igst_amt'],
-            'tax_amount' => $originalAmounts['tax_amount'],
-            'round_off' => $originalAmounts['round_off'],
-            'freight' => $originalAmounts['freight'],
-            'voucher_party_gst_no' => $get('voucher_party_gst_no'),
+            'bill_amount' => $bill_amount,
+            'rate' => $rate,
+            'amount' => $amount,
+            'freight' => $freight,
+            'tax_per' => $tax_per,
             'party_code' => $get('party_code'),
-            'sales_gst_type' => $get('sales_gst_type'),
-            'city' => $get('city'),
-            'voucher_id' => $get('voucher_id'),
             'item' => $get('item'),
-            'code' => $get('code'),
-            'hsn_code' => $get('hsn_code'),
             'unit' => $get('unit'),
-            'qty' => $get('qty'),
-            'tax_code' => $get('tax_code'),
-            'einvoice_no' => $get('einvoice_no'),
-            'eway_bill_no' => $get('eway_bill_no'),
-            'eway_bill_date' => $this->convertDate($get('eway_bill_date')),
+            'qty' => $qty,
+            'hsn_code' => $get('hsn_code'),
             'destination' => $get('destination'),
+            'city' => $get('city'),
+            'tax_amount' => $tax_amount,
         ]);
     }
 
-    private function normalizeHeader(string $h): string
+    private function normalizeHeader(string $header): string
     {
-        $h = trim(mb_strtolower($h));
-        $h = preg_replace('/[^a-z0-9]+/u', '_', $h);
-        $h = trim($h, '_');
+        $header = trim(mb_strtolower($header));
+        $header = preg_replace('/[^a-z0-9]+/u', '_', $header);
+        $header = trim($header, '_');
 
-        // Map variations to DB field names
+        // Map known variations to DB field names
         $map = [
             'bill_amountrs' => 'bill_amount',
             'gst_tds_tax_raters' => 'gst_tds_tax_rate',
             'gst_tds_tax_amountrs' => 'gst_tds_tax_amount',
             'amountrs' => 'amount',
-            'taxable_amountrs' => 'taxable_amount',
+            
             'cgst_amtrs' => 'cgst_amt',
             'sgst_amtrs' => 'sgst_amt',
             'igst_amtrs' => 'igst_amt',
             'tax_amountrs' => 'tax_amount',
-            'round_offrs' => 'round_off'
+            'round_offrs' => 'round_off',
         ];
 
-        return $map[$h] ?? $h;
+        return $map[$header] ?? $header;
     }
 
     private function convertDate($value)
@@ -165,8 +124,8 @@ class InvoiceImport implements ToModel, WithHeadingRow
             }
         }
 
-        $ts = strtotime((string)$value);
-        return $ts ? date('Y-m-d', $ts) : null;
+        $timestamp = strtotime((string)$value);
+        return $timestamp ? date('Y-m-d', $timestamp) : null;
     }
 
     public function getSkippedRows(): array

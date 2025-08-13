@@ -7,12 +7,15 @@ use App\Http\Middleware\AttachCompanyYear;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\YearMasterController;
 use App\Http\Controllers\LoginMasterController;
+use App\Http\Controllers\ProductChartController;
 use App\Http\Controllers\CompanyMasterController;
 use App\Http\Controllers\CountryMasterController;
+use App\Http\Controllers\ProductMasterController;
+use App\Http\Controllers\DistrictMasterController;
 use App\Http\Controllers\EmployeeMasterController;
 use App\Http\Controllers\DepartmentMasterController;
 use App\Http\Controllers\DesignationMasterController;
-use App\Http\Controllers\InvoiceDataUploadController;
+use App\Http\Controllers\InvoiceDataUploadController; 
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -75,11 +78,10 @@ Route::delete('/designation/{id}', [DesignationMasterController::class, 'destroy
 
 Route::post('/login', [LoginMasterController::class, 'login']);
 
-// Routes protected by Sanctum auth middleware
+ 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [LoginMasterController::class, 'logout']);
-
-    // Employee CRUD
+ 
     Route::post('/employee', [EmployeeMasterController::class, 'store']);
     Route::get('/employee/{id}', [EmployeeMasterController::class, 'show']);
     Route::put('/employee/{id}', [EmployeeMasterController::class, 'update']);
@@ -101,13 +103,26 @@ Route::get('/states', [StateController::class, 'index']);
 
 Route::post('/upload', [InvoiceDataUploadController::class, 'upload']);
 Route::get('/invoices', [InvoiceController::class, 'index']); 
-// Route::post('/upload-invoice', [InvoiceController::class, 'upload']);
+ 
 Route::post('/invoices/import', [InvoiceController::class, 'import'])->name('invoices.import');
 
 Route::post('/upload-invoice', [InvoiceController::class, 'import']);
 Route::get('/invoices', [InvoiceController::class, 'index']);
 Route::post('/invoices/update-duplicates', [InvoiceController::class, 'updateDuplicates']);
  
-use App\Http\Controllers\AugustInvoiceUploadController;
+  
+Route::get('/products', [ProductMasterController::class, 'index']);       
+Route::post('/products', [ProductMasterController::class, 'store']);     
+Route::get('/products/{id}', [ProductMasterController::class, 'show']);   
+Route::put('/products/{id}', [ProductMasterController::class, 'update']);  
+Route::delete('/products/{id}', [ProductMasterController::class, 'destroy']);  
 
-Route::post('/upload-august-invoices', [AugustInvoiceUploadController::class, 'upload']);
+
+Route::get('/districts', [DistrictMasterController::class, 'index']);       
+Route::post('/districts', [DistrictMasterController::class, 'store']);     
+Route::get('/districts/{id}', [DistrictMasterController::class, 'show']);   
+Route::put('/districts/{id}', [DistrictMasterController::class, 'update']);  
+Route::delete('/districts/{id}', [DistrictMasterController::class, 'destroy']);  
+
+
+Route::get('/profit-chart', [ProductChartController::class, 'profitReport']);
