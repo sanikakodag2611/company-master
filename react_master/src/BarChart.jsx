@@ -14,7 +14,7 @@ import DatePicker from "react-datepicker";
 import { format } from "date-fns";
 import "react-datepicker/dist/react-datepicker.css";
 
-export default function ProfitChart() { 
+export default function ProfitChart() {
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -29,84 +29,93 @@ export default function ProfitChart() {
   const [salesmanList, setSalesmanList] = useState([]);
 
   const [chartData, setChartData] = useState([]);
-  const [isOverall, setIsOverall] = useState(false);
+  const [ setIsOverall] = useState(false);
 
-  // Fetch products
+  // --- Initial load: first day of month to today
   useEffect(() => {
-    axios.get("http://127.0.0.1:8000/api/products")
-      .then(res => setProductsList(res.data.data || []))
-      .catch(err => console.error("Error fetching products:", err));
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    setFromDate(firstDayOfMonth);
+    setToDate(today);
+
+    fetchChartData(firstDayOfMonth, today, product, customer, salesman);
   }, []);
 
-  // Fetch customers
+  // --- Fetch chart when filters or dates change
   useEffect(() => {
-    axios.get("http://127.0.0.1:8000/api/customers")
-      .then(res => setCustomerList(res.data.data || []))
-      .catch(err => console.error("Error fetching customers:", err));
-  }, []);
-
-  // Fetch salesmen
-  useEffect(() => {
-    axios.get("http://127.0.0.1:8000/api/salesmans")
-      .then(res => setSalesmanList(res.data.data || []))
-      .catch(err => console.error("Error fetching salesmen:", err));
-  }, []);
-
-  // Fetch chart data
-  useEffect(() => {
-    if (fromDate && toDate) fetchChartData();
+    if (fromDate && toDate) {
+      fetchChartData(fromDate, toDate, product, customer, salesman);
+    }
   }, [fromDate, toDate, product, customer, salesman]);
 
-  const fetchChartData = async () => {
+  const fetchChartData = async (
+    from = fromDate,
+    to = toDate,
+    productFilter = product,
+    customerFilter = customer,
+    salesmanFilter = salesman
+  ) => {
     try {
       setLoading(true);
-      const apiFrom = format(fromDate, "yyyy-MM-dd");
-      const apiTo = format(toDate, "yyyy-MM-dd");
 
       const res = await axios.get("http://127.0.0.1:8000/api/profit-chart", {
         params: {
-          from_date: apiFrom,
-          to_date: apiTo,
-          product_name: product === "all" ? "" : product,
-          customer_name: customer === "all" ? "" : customer,
-          salesman_name: salesman === "all" ? "" : salesman,
+          from_date: from ? format(from, "yyyy-MM-dd") : "",
+          to_date: to ? format(to, "yyyy-MM-dd") : "",
+          product_name: productFilter === "all" ? "" : productFilter,
+          customer_name: customerFilter === "all" ? "" : customerFilter,
+          salesman_name: salesmanFilter === "all" ? "" : salesmanFilter,
         },
       });
 
-      if (!res.data || res.data.length === 0) {
+      // Update dropdowns dynamically
+      setProductsList(res.data.filters.products || []);
+      setCustomerList(res.data.filters.customers || []);
+      setSalesmanList(res.data.filters.salesmen || []);
+
+      const data = res.data.data || [];
+      if (data.length === 0) {
         setChartData([]);
         setIsOverall(false);
         return;
       }
 
-      const overall = !res.data[0].date;
+      // Determine if overall chart
+      const overall = data.length === 1 && !data[0].date;
       setIsOverall(overall);
 
       if (overall) {
-        // For overall, convert single object into array of bars
         setChartData([
-          { name: "Revenue", value: res.data[0].revenue },
-          { name: "Cost", value: res.data[0].cost },
-          { name: "Profit", value: res.data[0].profit },
-          { name: "Profit Rate (%)", value: res.data[0].profit_rate },
+          {
+            name: "Overall",
+            sales: data[0].sales,
+            cost: data[0].cost,
+            profit_amount: data[0].profit_amount,
+            profit_percent: data[0].profit_percent,
+            profit_percent_on_basic: data[0].profit_percent_on_basic,
+          },
         ]);
       } else {
-        // For date-wise, format each row
-        const formatted = res.data.map(item => ({
+        const formatted = data.map((item) => ({
           ...item,
-          date: format(new Date(item.date), "dd-MM-yyyy"),
+          name: format(new Date(item.date), "dd-MM-yyyy"),
         }));
         setChartData(formatted);
       }
-
-    } catch (error) {
-      console.error("Error fetching chart data:", error);
+    } catch (err) {
+      console.error("Error fetching chart data:", err);
       setChartData([]);
       setIsOverall(false);
     } finally {
       setLoading(false);
     }
   };
+
+  const noDataMessage = [
+    product !== "all" && `product "${product}"`,
+    customer !== "all" && `customer "${customer}"`,
+    salesman !== "all" && `salesman "${salesman}"`,
+  ].filter(Boolean).join(", ");
 
   return (
     <div style={{ width: "100%", padding: "20px" }}>
@@ -118,7 +127,10 @@ export default function ProfitChart() {
           <label>From Date: </label>
           <DatePicker
             selected={fromDate}
-            onChange={(date) => { setFromDate(date); if (toDate && date > toDate) setToDate(null); }}
+            onChange={(date) => {
+              setFromDate(date);
+              if (toDate && date > toDate) setToDate(null);
+            }}
             dateFormat="dd-MM-yyyy"
             placeholderText="DD-MM-YYYY"
           />
@@ -139,7 +151,9 @@ export default function ProfitChart() {
           <label>Product: </label>
           <select value={product} onChange={(e) => setProduct(e.target.value)}>
             <option value="all">All</option>
-            {productsList.map(p => <option key={p.id} value={p.product_name}>{p.product_name}</option>)}
+            {productsList.map((p) => (
+              <option key={p} value={p}>{p}</option>
+            ))}
           </select>
         </div>
 
@@ -147,7 +161,9 @@ export default function ProfitChart() {
           <label>Customer: </label>
           <select value={customer} onChange={(e) => setCustomer(e.target.value)}>
             <option value="all">All</option>
-            {customerList.map(c => <option key={c.customer_name} value={c.customer_name}>{c.customer_name}</option>)}
+            {customerList.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
           </select>
         </div>
 
@@ -155,7 +171,9 @@ export default function ProfitChart() {
           <label>Salesman: </label>
           <select value={salesman} onChange={(e) => setSalesman(e.target.value)}>
             <option value="all">All</option>
-            {salesmanList.map(s => <option key={s.salesman_name} value={s.salesman_name}>{s.salesman_name}</option>)}
+            {salesmanList.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
           </select>
         </div>
       </div>
@@ -166,33 +184,21 @@ export default function ProfitChart() {
           <p>Loading chart...</p>
         ) : chartData.length === 0 ? (
           <p style={{ textAlign: "center", marginTop: "180px", fontSize: "18px", color: "#888" }}>
-            {`No data found for ${product !== "all" ? `product "${product}"` : ""} ${
-              customer !== "all" ? `and customer "${customer}"` : ""
-            }${salesman !== "all" ? `and salesman "${salesman}"` : ""}`}
+            No data found{noDataMessage ? ` for ${noDataMessage}` : ""}.
           </p>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={isOverall ? chartData : chartData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-            >
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey={isOverall ? "name" : "date"} />
+              <XAxis dataKey="name" />
               <YAxis />
               <Tooltip />
               <Legend />
-              {isOverall ? (
-                <>
-                  <Bar dataKey="value" fill="#8884d8" />
-                </>
-              ) : (
-                <>
-                  <Bar dataKey="revenue" fill="#8884d8" name="Revenue" />
-                  <Bar dataKey="profit" fill="#82ca9d" name="Profit" />
-                  <Bar dataKey="cost" fill="#ffc658" name="Cost" />
-                  <Bar dataKey="profit_rate" fill="#ff7300" name="Profit Rate (%)" />
-                </>
-              )}
+              <Bar dataKey="sales" fill="#8884d8" name="Sales" />
+              <Bar dataKey="cost" fill="#ffc658" name="Cost" />
+              <Bar dataKey="profit_amount" fill="#82ca9d" name="Profit" />
+              <Bar dataKey="profit_percent" fill="#ff7300" name="Profit % on Sales" />
+              <Bar dataKey="profit_percent_on_basic" fill="#00bcd4" name="Profit % on Basic" />
             </BarChart>
           </ResponsiveContainer>
         )}
