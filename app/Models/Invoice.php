@@ -27,8 +27,7 @@ class Invoice extends Model
         'hsn_code',
         'freight',
         'city',     
-      
-         
+        
     ];
 
     protected $casts = [

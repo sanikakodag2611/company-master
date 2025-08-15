@@ -57,7 +57,7 @@ class ProductMasterController extends Controller
         $validated = $request->validate([
         'product_name' => 'required|string',
         'code' => 'required|string|unique:product_master,code,' . $id,
-        'hsn_code' => 'required|string:max:8|unique:product_master,hsn_code,' . $id,
+        'hsn_code' => 'required|string:max:8',
         'price' => 'required|numeric|min:0', 
         'company_id' => 'required|integer|exists:company_masters,id',
     ]);

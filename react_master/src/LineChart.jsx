@@ -8,7 +8,6 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Text,
 } from "recharts";
 import axios from "axios";
 import DatePicker from "react-datepicker";
@@ -20,8 +19,7 @@ export default function ProfitLineChart() {
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [lineType, setLineType] = useState("monotone"); // monotone, linear, step
-
+  const [lineType, setLineType] = useState("monotone");  
   const fetchChartData = async () => {
     if (!fromDate || !toDate) {
       alert("Please select both From and To dates.");
@@ -40,7 +38,6 @@ export default function ProfitLineChart() {
       if (!res.data || res.data.length === 0) {
         setData([]);
       } else {
-        // convert to proper numeric values
         const formattedData = res.data.map((item) => ({
           date: format(new Date(item.date), "dd-MM-yyyy"),
           revenue: Number(item.revenue),
@@ -58,24 +55,19 @@ export default function ProfitLineChart() {
     }
   };
 
-  const renderNoData = () => (
-    <Text
-      x="50%"
-      y="50%"
-      textAnchor="middle"
-      dominantBaseline="middle"
-      style={{ fontSize: 18, fill: "#888" }}
-    >
-      No Data Found
-    </Text>
-  );
-
   return (
     <div style={{ width: "100%", padding: "20px" }}>
       <h2>Profit Analysis Line Chart</h2>
 
-      {/* Date Pickers */}
-      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+      
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          flexWrap: "wrap",
+        }}
+      >
         <div>
           <label>From Date: </label>
           <DatePicker
@@ -102,7 +94,6 @@ export default function ProfitLineChart() {
 
         <button onClick={fetchChartData}>Fetch Chart</button>
 
-        {/* Line Type Selector */}
         <select value={lineType} onChange={(e) => setLineType(e.target.value)}>
           <option value="monotone">Monotone</option>
           <option value="linear">Linear</option>
@@ -116,7 +107,10 @@ export default function ProfitLineChart() {
           <p style={{ textAlign: "center", marginTop: "180px" }}>Loading chart...</p>
         ) : (
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+            <LineChart
+              data={data}
+              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+            >
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="date" />
               <YAxis />
@@ -128,10 +122,24 @@ export default function ProfitLineChart() {
                   <Line type={lineType} dataKey="revenue" stroke="#8884d8" name="Revenue" />
                   <Line type={lineType} dataKey="profit" stroke="#82ca9d" name="Profit" />
                   <Line type={lineType} dataKey="cost" stroke="#ffc658" name="Cost" />
-                  <Line type={lineType} dataKey="profit_rate" stroke="#ff7300" name="Profit Rate (%)" />
+                  <Line
+                    type={lineType}
+                    dataKey="profit_rate"
+                    stroke="#ff7300"
+                    name="Profit Rate (%)"
+                  />
                 </>
               ) : (
-                renderNoData()
+                // Centered "No Data Found" message
+                <text
+                  x="50%"
+                  y="50%"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  style={{ fontSize: 18, fill: "#888" }}
+                >
+                  No Data Found
+                </text>
               )}
             </LineChart>
           </ResponsiveContainer>
