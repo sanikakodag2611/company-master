@@ -238,5 +238,74 @@ class ProductChartController extends Controller
             'data' => $returnData
         ]);
     }
+
+     public function profitReportDaily(Request $request)
+    {
+        $startDate    = $request->query('from_date');
+        $endDate      = $request->query('to_date');
+        $productName  = $request->query('product_name');
+        $customerName = $request->query('customer_name');
+        $salesmanName = $request->query('salesman_name');
+
+        // Filters list
+        $query = DB::table('invoice_records');
+        if ($startDate && $endDate) {
+            $query->whereBetween('date', [$startDate, $endDate]);
+        }
+        $products  = (clone $query)->distinct()->pluck('item')->toArray();
+        $customers = (clone $query)->distinct()->pluck('customer')->toArray();
+        $salesmen  = (clone $query)->distinct()->pluck('salesman')->toArray();
+
+        // Invoices
+        $invoices = DB::table('invoice_records as i')
+            ->join('product_master as p', 'i.item', '=', 'p.product_name')
+            ->select('i.date', 'i.invoice_no', 'i.bill_amount', 'i.qty', 'p.price')
+            ->when($startDate && $endDate, fn($q) => $q->whereBetween('i.date', [$startDate, $endDate]))
+            ->when($productName, fn($q) => $q->where('i.item', $productName))
+            ->when($customerName, fn($q) => $q->where('i.customer', $customerName))
+            ->when($salesmanName, fn($q) => $q->where('i.salesman', $salesmanName))
+            ->get();
+
+        if ($invoices->isEmpty()) {
+            return response()->json([
+                'filters' => [
+                    'products'  => $products,
+                    'customers' => $customers,
+                    'salesmen'  => $salesmen
+                ],
+                'data' => []
+            ]);
+        }
+
+        // Date-wise calculation
+        $dateWise = $invoices->groupBy(fn($inv) => date('Y-m-d', strtotime($inv->date)))
+            ->map(function ($dayInvoices, $date) {
+                $sales = $dayInvoices->unique('invoice_no')->sum('bill_amount');
+                $cost = $dayInvoices->sum(fn($i) => $i->qty * $i->price);
+                $basicSales = $sales / 1.18;
+                $profitAmount = $basicSales - $cost;
+
+                return [
+                    'date'                     => $date,
+                    'sales'                    => round($sales, 2),
+                    'cost'                     => round($cost, 2),
+                    'profit_amount'            => round($profitAmount, 2),
+                    'profit_percent'           => $sales > 0 ? round(($profitAmount / $sales) * 100, 2) : 0,
+                    'profit_percent_on_basic'  => $basicSales > 0 ? round(($profitAmount / $basicSales) * 100, 2) : 0,
+                ];
+            })
+            ->sortKeys()
+            ->values();
+
+        return response()->json([
+            'filters' => [
+                'products'  => $products,
+                'customers' => $customers,
+                'salesmen'  => $salesmen
+            ],
+            'data' => $dateWise
+        ]);
+    }
 }
+ 
 

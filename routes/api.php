@@ -7,6 +7,7 @@ use App\Http\Middleware\AttachCompanyYear;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\SalesmanController;
+use App\Http\Controllers\LineReportController;
 use App\Http\Controllers\YearMasterController;
 use App\Http\Controllers\LoginMasterController;
 use App\Http\Controllers\ProductChartController;
@@ -130,3 +131,7 @@ Route::delete('/districts/{id}', [DistrictMasterController::class, 'destroy']);
 Route::get('/profit-chart', [ProductChartController::class, 'profitReport']);
 Route::get('/customers', [CustomerController::class, 'index']);
 Route::get('/salesmans', [SalesmanController::class, 'index']);
+ 
+Route::get('/profit-report-raw', [ProductChartController::class, 'profitReportDaily']);
+
+// Route::get('/profit-report', [LineReportController::class, 'profitReport']);

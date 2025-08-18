@@ -8,6 +8,7 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  LabelList,
 } from "recharts";
 import axios from "axios";
 import DatePicker from "react-datepicker";
@@ -29,19 +30,17 @@ export default function ProfitChart() {
   const [salesmanList, setSalesmanList] = useState([]);
 
   const [chartData, setChartData] = useState([]);
-  const [ setIsOverall] = useState(false);
+  const [isOverall, setIsOverall] = useState(false);
+  const [hoveredBar, setHoveredBar] = useState(null);  
 
-  // --- Initial load: first day of month to today
   useEffect(() => {
     const today = new Date();
     const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     setFromDate(firstDayOfMonth);
     setToDate(today);
-
     fetchChartData(firstDayOfMonth, today, product, customer, salesman);
   }, []);
 
-  // --- Fetch chart when filters or dates change
   useEffect(() => {
     if (fromDate && toDate) {
       fetchChartData(fromDate, toDate, product, customer, salesman);
@@ -57,7 +56,6 @@ export default function ProfitChart() {
   ) => {
     try {
       setLoading(true);
-
       const res = await axios.get("http://127.0.0.1:8000/api/profit-chart", {
         params: {
           from_date: from ? format(from, "yyyy-MM-dd") : "",
@@ -68,7 +66,6 @@ export default function ProfitChart() {
         },
       });
 
-      // Update dropdowns dynamically
       setProductsList(res.data.filters.products || []);
       setCustomerList(res.data.filters.customers || []);
       setSalesmanList(res.data.filters.salesmen || []);
@@ -80,7 +77,6 @@ export default function ProfitChart() {
         return;
       }
 
-      // Determine if overall chart
       const overall = data.length === 1 && !data[0].date;
       setIsOverall(overall);
 
@@ -109,6 +105,52 @@ export default function ProfitChart() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const renderTooltipContent = (payload, label) => {
+    if (!payload || !payload.length || !hoveredBar) return null;
+    const data = payload[0].payload;
+
+    let content;
+    switch (hoveredBar) {
+      case "sales":
+        content = (
+          <>
+            Sales: {data.sales}
+            <br />
+            Profit % on Sales: {data.profit_percent}%
+          </>
+        );
+        break;
+      case "cost":
+        content = (
+          <>
+            Cost: {data.cost}
+            <br />
+            Profit % on Basic: {data.profit_percent_on_basic}%
+          </>
+        );
+        break;
+      case "profit_amount":
+        content = <>Profit Amount: {data.profit_amount}</>;
+        break;
+      case "profit_percent":
+        content = <>Profit % on Sales: {data.profit_percent}%</>;
+        break;
+      case "profit_percent_on_basic":
+        content = <>Profit % on Basic: {data.profit_percent_on_basic}%</>;
+        break;
+      default:
+        content = null;
+    }
+
+    return (
+      <div style={{ background: "#fff", border: "1px solid #ccc", padding: "8px" }}>
+        <strong>{label}</strong>
+        <br />
+        {content}
+      </div>
+    );
   };
 
   const noDataMessage = [
@@ -192,13 +234,64 @@ export default function ProfitChart() {
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" />
               <YAxis />
-              <Tooltip />
+              <Tooltip
+                cursor={{ fill: 'rgba(0,0,0,0.1)' }}
+                content={({ payload, label }) => renderTooltipContent(payload, label)}
+              />
               <Legend />
-              <Bar dataKey="sales" fill="#8884d8" name="Sales" />
-              <Bar dataKey="cost" fill="#ffc658" name="Cost" />
-              <Bar dataKey="profit_amount" fill="#82ca9d" name="Profit" />
-              <Bar dataKey="profit_percent" fill="#ff7300" name="Profit % on Sales" />
-              <Bar dataKey="profit_percent_on_basic" fill="#00bcd4" name="Profit % on Basic" />
+
+
+
+              <Bar
+                dataKey="sales"
+                stackId="b"
+                fill="#8884d8"
+                name="Sales"
+                onMouseOver={() => setHoveredBar("sales")}
+                onMouseOut={() => setHoveredBar(null)}
+              >
+                
+              </Bar>
+
+              <Bar
+                dataKey="cost"
+                stackId="a"
+                fill="#ffc658"
+                name="Cost"
+                onMouseOver={() => setHoveredBar("cost")}
+                onMouseOut={() => setHoveredBar(null)}
+              >
+                
+              </Bar>
+
+              <Bar
+                dataKey="profit_amount"
+                fill="#82ca9d"
+                name="Profit"
+                onMouseOver={() => setHoveredBar("profit_amount")}
+                onMouseOut={() => setHoveredBar(null)}
+              >
+               
+              </Bar>
+{/* 
+              <Bar
+                dataKey="profit_percent"
+                stackId="b"
+                name="Profit % on Sales"
+                onMouseOver={() => setHoveredBar("profit_percent")}
+                onMouseOut={() => setHoveredBar(null)}
+              >
+                </Bar>
+
+              <Bar
+                dataKey="profit_percent_on_basic"
+                stackId="a"
+                 
+                name="Profit % on Basic"
+                onMouseOver={() => setHoveredBar("profit_percent_on_basic")}
+                onMouseOut={() => setHoveredBar(null)}
+              > */}
+               {/* </Bar> */}
             </BarChart>
           </ResponsiveContainer>
         )}
