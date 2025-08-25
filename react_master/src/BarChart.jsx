@@ -1,299 +1,302 @@
 import React, { useState, useEffect } from "react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  LabelList,
-} from "recharts";
+import Chart from "react-apexcharts";
 import axios from "axios";
 import DatePicker from "react-datepicker";
 import { format } from "date-fns";
 import "react-datepicker/dist/react-datepicker.css";
 
-export default function ProfitChart() {
+export default function ProfitChartApex() {
   const [fromDate, setFromDate] = useState(null);
   const [toDate, setToDate] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [chartData, setChartData] = useState({ series: [], options: {} });
+  const [groupBySalesman, setGroupBySalesman] = useState(false);
+  const [groupByCity, setGroupByCity] = useState(false);
+  const [drillDownCity, setDrillDownCity] = useState(null);
+  const [drillDownSalesman, setDrillDownSalesman] = useState(null);
 
-  const [product, setProduct] = useState("all");
-  const [productsList, setProductsList] = useState([]);
-
-  const [customer, setCustomer] = useState("all");
-  const [customerList, setCustomerList] = useState([]);
-
-  const [salesman, setSalesman] = useState("all");
-  const [salesmanList, setSalesmanList] = useState([]);
-
-  const [chartData, setChartData] = useState([]);
-  const [isOverall, setIsOverall] = useState(false);
-  const [hoveredBar, setHoveredBar] = useState(null);  
-
+  // ===============================
+  // Set default date range (this month)
+  // ===============================
   useEffect(() => {
     const today = new Date();
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    setFromDate(firstDayOfMonth);
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    setFromDate(firstDay);
     setToDate(today);
-    fetchChartData(firstDayOfMonth, today, product, customer, salesman);
   }, []);
 
+  // ===============================
+  // Fetch Chart Data
+  // ===============================
   useEffect(() => {
-    if (fromDate && toDate) {
-      fetchChartData(fromDate, toDate, product, customer, salesman);
-    }
-  }, [fromDate, toDate, product, customer, salesman]);
+    if (fromDate && toDate) fetchChartData();
+  }, [fromDate, toDate, groupBySalesman, groupByCity, drillDownCity, drillDownSalesman]);
 
-  const fetchChartData = async (
-    from = fromDate,
-    to = toDate,
-    productFilter = product,
-    customerFilter = customer,
-    salesmanFilter = salesman
-  ) => {
+  const fetchChartData = async () => {
     try {
       setLoading(true);
-      const res = await axios.get("http://127.0.0.1:8000/api/profit-chart", {
-        params: {
-          from_date: from ? format(from, "yyyy-MM-dd") : "",
-          to_date: to ? format(to, "yyyy-MM-dd") : "",
-          product_name: productFilter === "all" ? "" : productFilter,
-          customer_name: customerFilter === "all" ? "" : customerFilter,
-          salesman_name: salesmanFilter === "all" ? "" : salesmanFilter,
-        },
-      });
 
-      setProductsList(res.data.filters.products || []);
-      setCustomerList(res.data.filters.customers || []);
-      setSalesmanList(res.data.filters.salesmen || []);
+      const params = {
+        from_date: format(fromDate, "yyyy-MM-dd"),
+        to_date: format(toDate, "yyyy-MM-dd"),
+      };
 
-      const data = res.data.data || [];
-      if (data.length === 0) {
-        setChartData([]);
-        setIsOverall(false);
+      let endpoint = "/api/date-wise"; // default
+
+      if (drillDownSalesman && drillDownCity) {
+        endpoint = "/api/salesman-dates";
+        params.city = drillDownCity;
+        params.salesman = drillDownSalesman;
+      } else if (drillDownCity && groupByCity) {
+        endpoint = "/api/salesmen-in-city";
+        params.city = drillDownCity;
+      } else if (drillDownSalesman && groupBySalesman) {
+        endpoint = "/api/salesman-in-cities";
+        params.salesman = drillDownSalesman;
+      } else if (groupByCity) {
+        endpoint = "/api/city-wise";
+      } else if (groupBySalesman) {
+        endpoint = "/api/salesman-wise";
+      }
+
+      const res = await axios.get(`http://127.0.0.1:8000${endpoint}`, { params });
+      const data = res.data || [];
+
+      if (!data.length) {
+        setChartData({ series: [], options: {} });
         return;
       }
 
-      const overall = data.length === 1 && !data[0].date;
-      setIsOverall(overall);
+      // ===============================
+      // Build Series + Categories
+      // ===============================
+      let series = [];
+      let categories = [];
+      let xAxisLabel = "";
 
-      if (overall) {
-        setChartData([
+      if (drillDownSalesman && groupBySalesman) {
+        // Salesman → Cities
+        categories = data.map(d => d.city);
+        series = [
+          { name: "Sale", data: data.map(d => d.sales - d.profit) },
+          { name: "Profit", data: data.map(d => d.profit) },
+        ];
+        xAxisLabel = `Cities for ${drillDownSalesman}`;
+
+      } else if (drillDownSalesman && drillDownCity) {
+        // City → Salesman → Date
+        const dateList = [...new Set(data.map(d => d.date))].sort();
+        categories = dateList.map(d => format(new Date(d), "dd-MM-yyyy"));
+        series = [
           {
-            name: "Overall",
-            sales: data[0].sales,
-            cost: data[0].cost,
-            profit_amount: data[0].profit_amount,
-            profit_percent: data[0].profit_percent,
-            profit_percent_on_basic: data[0].profit_percent_on_basic,
+            name: "Sale",
+            data: dateList.map(d => {
+              const sales = data.filter(x => x.date === d).reduce((a, b) => a + b.sales, 0);
+              const profit = data.filter(x => x.date === d).reduce((a, b) => a + b.profit, 0);
+              return sales - profit;
+            }),
           },
-        ]);
+          {
+            name: "Profit",
+            data: dateList.map(d =>
+              data.filter(x => x.date === d).reduce((a, b) => a + b.profit, 0)
+            ),
+          },
+        ];
+        xAxisLabel = `${drillDownSalesman} in ${drillDownCity} (Date-wise)`;
+
+      } else if (drillDownCity) {
+        // City → Salesmen
+        categories = data.map(d => d.salesman);
+        series = [
+          { name: "Sale", data: data.map(d => d.sales - d.profit) },
+          { name: "Profit", data: data.map(d => d.profit) },
+        ];
+        xAxisLabel = `Salesmen in ${drillDownCity}`;
+
+      } else if (groupBySalesman) {
+        // Salesman-wise
+        categories = data.map(d => d.salesman);
+        series = [
+          { name: "Sale", data: data.map(d => d.sales - d.profit) },
+          { name: "Profit", data: data.map(d => d.profit) },
+        ];
+        xAxisLabel = "Salesman";
+
+      } else if (groupByCity) {
+        // City-wise
+        categories = data.map(d => d.city);
+        series = [
+          { name: "Sale", data: data.map(d => d.sales - d.profit) },
+          { name: "Profit", data: data.map(d => d.profit) },
+        ];
+        xAxisLabel = "City";
+
       } else {
-        const formatted = data.map((item) => ({
-          ...item,
-          name: format(new Date(item.date), "dd-MM-yyyy"),
-        }));
-        setChartData(formatted);
+        // Default: Date-wise
+        const dateList = [...new Set(data.map(d => d.date))].sort();
+        categories = dateList.map(d => format(new Date(d), "dd-MM-yyyy"));
+        series = [
+          {
+            name: "Sale",
+            data: dateList.map(d => {
+              const sales = data.filter(x => x.date === d).reduce((a, b) => a + b.sales, 0);
+              const profit = data.filter(x => x.date === d).reduce((a, b) => a + b.profit, 0);
+              return sales - profit;
+            }),
+          },
+          {
+            name: "Profit",
+            data: dateList.map(d =>
+              data.filter(x => x.date === d).reduce((a, b) => a + b.profit, 0)
+            ),
+          },
+        ];
+        xAxisLabel = "Date";
       }
+
+      // ===============================
+      // Chart Options
+      // ===============================
+      setChartData({
+        series,
+        options: {
+          chart: {
+            type: "bar",
+            stacked:true,
+            height: 800,
+            events: {
+              dataPointSelection: (event, ctx, config) => {
+                const clicked = categories[config.dataPointIndex];
+                if (groupByCity && !drillDownCity) setDrillDownCity(clicked);
+                else if (drillDownCity && !drillDownSalesman) setDrillDownSalesman(clicked);
+                else if (groupBySalesman && !drillDownSalesman) setDrillDownSalesman(clicked);
+              },
+            },
+          },
+          plotOptions: { bar: { horizontal: false, columnWidth: "70%" } },
+          xaxis: {
+            categories,
+            title: { text: xAxisLabel, style: { fontWeight: 600, fontSize: "14px" } },
+          },
+          yaxis: {
+            title: { text: "Amount (₹)", style: { fontWeight: 600, fontSize: "14px" } },
+            labels: {
+              formatter: val =>
+                `₹${val.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+            },
+          },
+          colors: ["#3498db", "#2ecc71"], // Sale Blue, Profit Green
+          tooltip: {
+            shared: false,
+            y: {
+              formatter: (val, { seriesIndex, w }) =>
+                `${w.globals.seriesNames[seriesIndex]}: ₹${val.toLocaleString("en-IN", {
+                  minimumFractionDigits: 2,
+                })}`,
+            },
+            legend: { position: "top" },
+          },
+          dataLabels: {
+            enabled: true,
+            formatter: val =>
+              `₹${val.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
+          },
+          legend: { position: "top" },
+        },
+      });
     } catch (err) {
-      console.error("Error fetching chart data:", err);
-      setChartData([]);
-      setIsOverall(false);
+      console.error(err);
+      setChartData({ series: [], options: {} });
     } finally {
       setLoading(false);
     }
   };
 
-  const renderTooltipContent = (payload, label) => {
-    if (!payload || !payload.length || !hoveredBar) return null;
-    const data = payload[0].payload;
-
-    let content;
-    switch (hoveredBar) {
-      case "sales":
-        content = (
-          <>
-            Sales: {data.sales}
-            <br />
-            Profit % on Sales: {data.profit_percent}%
-          </>
-        );
-        break;
-      case "cost":
-        content = (
-          <>
-            Cost: {data.cost}
-            <br />
-            Profit % on Basic: {data.profit_percent_on_basic}%
-          </>
-        );
-        break;
-      case "profit_amount":
-        content = <>Profit Amount: {data.profit_amount}</>;
-        break;
-      case "profit_percent":
-        content = <>Profit % on Sales: {data.profit_percent}%</>;
-        break;
-      case "profit_percent_on_basic":
-        content = <>Profit % on Basic: {data.profit_percent_on_basic}%</>;
-        break;
-      default:
-        content = null;
-    }
-
-    return (
-      <div style={{ background: "#fff", border: "1px solid #ccc", padding: "8px" }}>
-        <strong>{label}</strong>
-        <br />
-        {content}
-      </div>
-    );
-  };
-
-  const noDataMessage = [
-    product !== "all" && `product "${product}"`,
-    customer !== "all" && `customer "${customer}"`,
-    salesman !== "all" && `salesman "${salesman}"`,
-  ].filter(Boolean).join(", ");
-
+  // ===============================
+  // UI
+  // ===============================
   return (
     <div style={{ width: "100%", padding: "20px" }}>
       <h2>Profit Analysis Chart</h2>
 
-      {/* Filters */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", alignItems: "center" }}>
+      {/* Date Filters */}
+      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
         <div>
-          <label>From Date: </label>
+          <label>From: </label>
           <DatePicker
             selected={fromDate}
-            onChange={(date) => {
+            onChange={date => {
               setFromDate(date);
               if (toDate && date > toDate) setToDate(null);
             }}
             dateFormat="dd-MM-yyyy"
-            placeholderText="DD-MM-YYYY"
           />
         </div>
-
         <div>
-          <label>To Date: </label>
+          <label>To: </label>
           <DatePicker
             selected={toDate}
-            onChange={(date) => setToDate(date)}
+            onChange={date => setToDate(date)}
             dateFormat="dd-MM-yyyy"
-            placeholderText="DD-MM-YYYY"
             minDate={fromDate}
           />
         </div>
-
         <div>
-          <label>Product: </label>
-          <select value={product} onChange={(e) => setProduct(e.target.value)}>
-            <option value="all">All</option>
-            {productsList.map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label>Customer: </label>
-          <select value={customer} onChange={(e) => setCustomer(e.target.value)}>
-            <option value="all">All</option>
-            {customerList.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label>Salesman: </label>
-          <select value={salesman} onChange={(e) => setSalesman(e.target.value)}>
-            <option value="all">All</option>
-            {salesmanList.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          <label style={{ marginRight: "10px" }}>
+            <input
+              type="checkbox"
+              checked={groupBySalesman}
+              onChange={e => {
+                setGroupBySalesman(e.target.checked);
+                if (e.target.checked) setGroupByCity(false);
+                setDrillDownCity(null);
+                setDrillDownSalesman(null);
+              }}
+            />{" "}
+            Salesman
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={groupByCity}
+              onChange={e => {
+                setGroupByCity(e.target.checked);
+                if (e.target.checked) setGroupBySalesman(false);
+                setDrillDownCity(null);
+                setDrillDownSalesman(null);
+              }}
+            />{" "}
+            City
+          </label>
         </div>
       </div>
 
+      {/* Drill-down Back Buttons */}
+      <div style={{ marginTop: "10px" }}>
+        {drillDownSalesman && groupBySalesman && (
+          <button onClick={() => setDrillDownSalesman(null)}>← Back to Salesmen</button>
+        )}
+        {drillDownCity && (
+          <button style={{ marginRight: "10px" }} onClick={() => setDrillDownCity(null)}>
+            ← Back to Cities
+          </button>
+        )}
+        {drillDownSalesman && drillDownCity && (
+          <button onClick={() => setDrillDownSalesman(null)}>← Back to Salesmen</button>
+        )}
+      </div>
+
       {/* Chart */}
-      <div style={{ width: "100%", height: 400, marginTop: "20px" }}>
+      <div style={{ width: "100%", marginTop: "20px" }}>
         {loading ? (
           <p>Loading chart...</p>
-        ) : chartData.length === 0 ? (
-          <p style={{ textAlign: "center", marginTop: "180px", fontSize: "18px", color: "#888" }}>
-            No data found{noDataMessage ? ` for ${noDataMessage}` : ""}.
+        ) : !chartData.series || chartData.series.length === 0 ? (
+          <p style={{ textAlign: "center", marginTop: 180, fontSize: "18px", color: "#888" }}>
+            No data found for selected range.
           </p>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="name" />
-              <YAxis />
-              <Tooltip
-                cursor={{ fill: 'rgba(0,0,0,0.1)' }}
-                content={({ payload, label }) => renderTooltipContent(payload, label)}
-              />
-              <Legend />
-
-
-
-              <Bar
-                dataKey="sales"
-                stackId="b"
-                fill="#8884d8"
-                name="Sales"
-                onMouseOver={() => setHoveredBar("sales")}
-                onMouseOut={() => setHoveredBar(null)}
-              >
-                
-              </Bar>
-
-              <Bar
-                dataKey="cost"
-                stackId="a"
-                fill="#ffc658"
-                name="Cost"
-                onMouseOver={() => setHoveredBar("cost")}
-                onMouseOut={() => setHoveredBar(null)}
-              >
-                
-              </Bar>
-
-              <Bar
-                dataKey="profit_amount"
-                fill="#82ca9d"
-                name="Profit"
-                onMouseOver={() => setHoveredBar("profit_amount")}
-                onMouseOut={() => setHoveredBar(null)}
-              >
-               
-              </Bar>
-{/* 
-              <Bar
-                dataKey="profit_percent"
-                stackId="b"
-                name="Profit % on Sales"
-                onMouseOver={() => setHoveredBar("profit_percent")}
-                onMouseOut={() => setHoveredBar(null)}
-              >
-                </Bar>
-
-              <Bar
-                dataKey="profit_percent_on_basic"
-                stackId="a"
-                 
-                name="Profit % on Basic"
-                onMouseOver={() => setHoveredBar("profit_percent_on_basic")}
-                onMouseOut={() => setHoveredBar(null)}
-              > */}
-               {/* </Bar> */}
-            </BarChart>
-          </ResponsiveContainer>
+          <Chart options={chartData.options} series={chartData.series} type="bar" height={400} />
         )}
       </div>
     </div>

@@ -89,6 +89,9 @@ class InvoiceImport implements ToModel, WithHeadingRow
             'destination' => $get('destination'),
             'city'        => $get('city'),
             'tax_amount'  => $tax_amount,
+            'transport'  => $get('transport') ?? 0,
+            'commission' => $get('commission') ?? 0,
+
         ]);
     }
 

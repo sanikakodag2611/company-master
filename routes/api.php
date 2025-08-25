@@ -2,6 +2,7 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\chartcontroller;
 use App\Http\Controllers\StateController;
 use App\Http\Middleware\AttachCompanyYear;
 use App\Http\Controllers\InvoiceController;
@@ -79,18 +80,31 @@ Route::delete('/designation/{id}', [DesignationMasterController::class, 'destroy
 //     Route::delete('/employee/{id}', [EmployeeMasterController::class, 'destroy']);
 // });
 
-Route::post('/login', [LoginMasterController::class, 'login']);
+// Route::post('/login', [LoginMasterController::class, 'login']);
 
  
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/logout', [LoginMasterController::class, 'logout']);
+// Route::middleware('auth:sanctum')->group(function () {
+//     Route::post('/logout', [LoginMasterController::class, 'logout']);
  
-    Route::post('/employee', [EmployeeMasterController::class, 'store']);
-    Route::get('/employee/{id}', [EmployeeMasterController::class, 'show']);
-    Route::put('/employee/{id}', [EmployeeMasterController::class, 'update']);
-    Route::delete('/employee/{id}', [EmployeeMasterController::class, 'destroy']);
+//     Route::post('/employee', [EmployeeMasterController::class, 'store']);
+//     Route::get('/employee/{id}', [EmployeeMasterController::class, 'show']);
+//     Route::put('/employee/{id}', [EmployeeMasterController::class, 'update']);
+//     Route::delete('/employee/{id}', [EmployeeMasterController::class, 'destroy']);
+// });
+// Route::post('/employees/public-create', [EmployeeMasterController::class, 'store']);
+
+Route::post('/login', [LoginMasterController::class, 'login']);
+Route::post('/logout', [LoginMasterController::class, 'logout'])->middleware('auth:sanctum');
+
+// -------------------- EMPLOYEE ROUTES --------------------
+Route::middleware(['auth:sanctum'])->group(function () {
+    Route::prefix('employees')->group(function () {
+        Route::post('/', [EmployeeMasterController::class, 'store']);        // Create
+        Route::get('/{id}', [EmployeeMasterController::class, 'show']);      // Read
+        Route::put('/{id}', [EmployeeMasterController::class, 'update']);    // Update
+        Route::delete('/{id}', [EmployeeMasterController::class, 'destroy']); // Delete
+    });
 });
-Route::post('/employees/public-create', [EmployeeMasterController::class, 'store']);
 
 Route::get('/years', [YearMasterController::class, 'index']);
 Route::post('/years', [YearMasterController::class, 'store']);
@@ -132,6 +146,17 @@ Route::get('/profit-chart', [ProductChartController::class, 'profitReport']);
 Route::get('/customers', [CustomerController::class, 'index']);
 Route::get('/salesmans', [SalesmanController::class, 'index']);
  
+Route::get('/profit-chart-new', [chartcontroller::class, 'profitReport']);
 Route::get('/profit-report-raw', [ProductChartController::class, 'profitReportDaily']);
 
 // Route::get('/profit-report', [LineReportController::class, 'profitReport']);
+
+ 
+Route::get('/date-wise', [chartcontroller::class, 'dateWise']);
+Route::get('/city-wise', [chartcontroller::class, 'cityWise']);
+Route::get('/salesman-wise', [chartcontroller::class, 'salesmanWise']);
+Route::get('/salesmen-in-city', [chartcontroller::class, 'salesmenInCity']);
+Route::get('/salesman-dates', [chartcontroller::class, 'salesmanDates']);
+Route::get('/salesman-in-cities', [chartcontroller::class, 'salesmanInCities']);
+Route::get('/totals', [chartcontroller::class, 'totals']);
+ 

@@ -27,7 +27,8 @@ class Invoice extends Model
         'hsn_code',
         'freight',
         'city',     
-        
+        'transport',
+        'commission',
     ];
 
     protected $casts = [
@@ -37,6 +38,8 @@ class Invoice extends Model
         'tax_per' => 'float',
         'tax_amount' => 'float', 
         'freight' => 'float',
-        'qty' => 'integer',   
+        'qty' => 'integer', 
+        'transport' => 'float',
+        'commission' => 'float',  
     ];
 }

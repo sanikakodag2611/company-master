@@ -2,19 +2,33 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Support\Facades\Session;
+use Illuminate\Routing\Controller as Controller;
 
 class BaseController extends Controller
 {
-    protected function getCompanyId()
+    /**
+     * Get session company_id and year_id
+     * If not available, return error response.
+     */
+    protected function getSessionCompanyYear()
     {
-        return Session::get('company_id');
-    }
+        $companyId = session('company_id');
+        $yearId    = session('year_id');
 
-    protected function getYearId()
-    {
-        return Session::get('year_id');
-    }
+        if (!$companyId || !$yearId) {
+            return [
+                'status' => false,
+                'error'  => response()->json([
+                    'status'  => false,
+                    'message' => 'Session expired. Please login again.'
+                ], 401)
+            ];
+        }
 
-     
+        return [
+            'status'     => true,
+            'company_id' => $companyId,
+            'year_id'    => $yearId,
+        ];
+    }
 }

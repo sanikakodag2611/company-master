@@ -9,7 +9,7 @@ import CompanyMasterForm from './Company/CompanyMasterForm';
 import UploadExcel from './UploadExcel';
 import ProfitChart from './BarChart';
 import ProfitLineChart from './LineChart';
-import ProfitPieChart from './PieChart';
+import ProfitPieChartApex from './PieChart';
 
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -53,16 +53,16 @@ function App() {
           />
           <Route
             path="/bar-chart"
-            element={isLoggedIn ? <ProfitChart/> : <Navigate to="/login" replace />}
+            element={ <ProfitChart/>}
           />
           <Route
             path="/line-chart"
-            element={isLoggedIn ? <ProfitLineChart/> : <Navigate to="/login" replace />}
+            element={<ProfitLineChart/>}
           />
 
           <Route
             path="/pie-chart"
-            element={isLoggedIn ? <ProfitPieChart/> : <Navigate to="/login" replace />}
+            element={<ProfitPieChartApex/>}
           />
 
         </Routes>
